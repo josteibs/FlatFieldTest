@@ -7,26 +7,33 @@ Purpose: Open ods files and plot NPS curves.
 """
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pandas as pd
 import PySimpleGUI as sg
+import pydicom
+import glob
 
 layout = [
     #reconstructions available
     [sg.Text("Choose reconstruction: ")],
-    [sg.Combo(['FBP', 'IR1', 'IR2'], key='rec_type')],
+    [sg.Combo(['FBP', 'IR1', 'IR2'], default_value = 'FBP', key='rec_type')],
     #All filters available
     [sg.Text("Choose filter: ")], 
     [sg.Combo(['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h', 
-              'J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s'], key='filter_type')],
+              'J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s'], default_value = 'H10s', key='filter_type')],
     [sg.Button('Plot NPS', key='-NPS_BUTTON-')],
     [],
-    [sg.Button('Plot all FBP', key='-FBP_ALL-'), sg.Button('Plot all IR1', key='-IR1_ALL-'), sg.Button('Plot all IR2', key='-IR2_ALL-')]
+    [sg.Button('Plot all FBP', key='-FBP_ALL-'), sg.Button('Plot all IR1', key='-IR1_ALL-'), sg.Button('Plot all IR2', key='-IR2_ALL-')],
+    [sg.Text("Choose dose level: "), sg.Combo(['CTDI1', 'CTDI2', 'CTDI3', 'ALL'], default_value = 'ALL', key='dose_level'), sg.Button('Test image', key='-IMAGE-')]
     
 ]
 
 
 window = sg.Window('NPS vs Dose', layout, size=(500,350))
 
+##############################################
+#NPS FUNCTIONS
+##############################################
 def plot_NPS_dose(filter_name, reconstruction, onePlot=True, index=0):
     #NOTE: The onePlot parameter is used to make sure all plots are placed on the same figure, when several gaphs are plotted.
     #the index parameter is used to place the plot within the subfigure
@@ -46,9 +53,9 @@ def plot_NPS_dose(filter_name, reconstruction, onePlot=True, index=0):
         plt.figure()
     if onePlot==False:
         plt.subplot(2,4,index)
-    plt.plot(df1['F'], df1['NPSTOT'], label='Dose1', color='green')
-    plt.plot(df1['F'], df2['NPSTOT'], label='Dose2', color='steelblue')
-    plt.plot(df1['F'], df3['NPSTOT'], label='Dose3', color='purple')
+    plt.plot(df1['F'], df1['NPSTOT'], label='CTDI1', color='green')
+    plt.plot(df1['F'], df2['NPSTOT'], label='CTDI2', color='steelblue')
+    plt.plot(df1['F'], df3['NPSTOT'], label='CTDI3', color='purple')
     
     plt.title(filter_name + ' with ' + reconstruction)
     plt.grid() 
@@ -103,13 +110,59 @@ def plot_NPS_dose_IR2_all():
     plot_NPS_dose('Q33s', 'IR2', onePlot, 8)
     plt.show()
 
+##############################################
+##############################################
+def sortImages(pathname):
+    '''Function from Vilde
+    Sort images in same directory'''
+    sortDict = {}
+    for path in glob.glob(pathname):
+        ds = pydicom.dcmread(path, stop_before_pixels=True)
+        sortDict[ds.SliceLocation] = path
+        mpl.rc('figure', max_open_warning = 0)
+    sortedKeys = sorted(sortDict.keys())
+    return sortDict, sortedKeys 
+
+def show_dicom(filter_name, reconstruction, dose_level):
+    '''
+    Displays the 6th image in a sequence for a certain dose, filter and reconstruction.
+    '''
+    image_path = "../CT bilder av Catphan/Siemens AS+/" + dose_level + " " + reconstruction + "  3.0  " + filter_name + "/*.dcm"
+    
+    print(image_path)
+    sortDict, sortedKeys = sortImages(image_path) #Sort images
+    
+    final_path = sortDict[sortedKeys[5]]
+    
+    dataset = pydicom.dcmread(final_path)
+    image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
+    plt.axis('off')
+    plt.title(reconstruction + " " + filter_name + " " + dose_level)
+    plt.imshow(image, cmap='Greys',  )
+
+def show_dicom_all_dose():
+    plt.figure()
+    plt.subplot(1,3,1)
+    show_dicom(value['filter_type'], value['rec_type'], 'CTDI1')
+    plt.subplot(1,3,2)
+    show_dicom(value['filter_type'], value['rec_type'], 'CTDI2')
+    plt.subplot(1,3,3)
+    show_dicom(value['filter_type'], value['rec_type'], 'CTDI3')
+    
 while True:
     event,value= window.read()
     
     #For spesific button press. 
-    if event == '-NPS_BUTTON-': 
-        plot_NPS_dose(value['filter_type'], value['rec_type'])
-    
+    if event == '-NPS_BUTTON-':
+        #Make sure file exist.
+        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
+            print('Filter and reconstruction not compatible')
+        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
+            print('Filter and reconstruction not compatible')
+            
+        else:
+            plot_NPS_dose(value['filter_type'], value['rec_type'])
+            
     #When one of the "plot all"-buttons are pressed.
     if event == '-FBP_ALL-':
         plot_NPS_dose_FBP_all()
@@ -119,6 +172,25 @@ while True:
     
     if event == '-IR2_ALL-':
         plot_NPS_dose_IR2_all()
+        
+    if event == '-IMAGE-' and not value['dose_level']=='ALL':
+        #Make sure file exist
+        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
+            print('Filter and reconstruction not compatible')
+        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
+            print('Filter and reconstruction not compatible')
+        else:
+            print(value['dose_level']=='ALL')
+            show_dicom(value['filter_type'], value['rec_type'], value['dose_level'])
+    
+    if event == '-IMAGE-' and value['dose_level']=='ALL':
+        #Make sure file exist
+        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
+            print('Filter and reconstruction not compatible')
+        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
+            print('Filter and reconstruction not compatible')
+        else:
+            show_dicom_all_dose()
     
     #break
     if event == sg.WIN_CLOSED:
