@@ -30,6 +30,12 @@ layout = [
     
 ]
 
+dose_dict = {
+    "40 mGy": "CTDI1",
+    "60 mGy": "CTDI2",
+    "80 mGy": "CTDI3" 
+    
+}
 
 window = sg.Window('NPS vs Dose', layout, size=(500,350))
 
@@ -53,13 +59,15 @@ def plot_NPS_dose(scanner_name, filter_name, reconstruction, onePlot=True, index
     #Plotting NPS curves
     if onePlot==True:   
         plt.figure()
+        plt.title(filter_name + ' with ' + reconstruction)
     if onePlot==False:
         plt.subplot(2,4,index)
+        plt.title(filter_name)
     plt.plot(df1['F'], df1['NPSTOT'], label='40 mGy', color='green')
     plt.plot(df1['F'], df2['NPSTOT'], label='60 mGy', color='steelblue')
     plt.plot(df1['F'], df3['NPSTOT'], label='80 mGy', color='purple')
     
-    plt.title(filter_name + ' with ' + reconstruction)
+    
     plt.grid() 
     
     plt.ylabel('NPS')
@@ -72,7 +80,9 @@ def plot_NPS_dose(scanner_name, filter_name, reconstruction, onePlot=True, index
 def plot_NPS_dose_FBP_all():
     #Plotting all NPS vs Dose for FBP
     onePlot=False
-    plt.figure()
+    fig = plt.figure()
+    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    #
     plot_NPS_dose(value['scanner'], 'H10s', 'FBP', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'H20s', 'FBP', onePlot, 2)
     plot_NPS_dose(value['scanner'], 'H30s', 'FBP', onePlot, 3)
@@ -87,7 +97,9 @@ def plot_NPS_dose_FBP_all():
 def plot_NPS_dose_IR1_all():
     #Plotting all NPS vs Dose for IR1
     onePlot=False
-    plt.figure()
+    fig = plt.figure()
+    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    #
     plot_NPS_dose(value['scanner'], 'J30s', 'IR1', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'J37s', 'IR1', onePlot, 2)
     plot_NPS_dose(value['scanner'], 'J40s', 'IR1', onePlot, 3)
@@ -101,7 +113,9 @@ def plot_NPS_dose_IR1_all():
 def plot_NPS_dose_IR2_all():
     #Plotting all NPS vs Dose for IR2
     onePlot=False
-    plt.figure()
+    fig = plt.figure()
+    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    #
     plot_NPS_dose(value['scanner'], 'J30s', 'IR2', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'J37s', 'IR2', onePlot, 2)
     plot_NPS_dose(value['scanner'], 'J40s', 'IR2', onePlot, 3)
@@ -134,7 +148,7 @@ def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
     '''
     Displays the 6th image in a sequence for a certain dose, filter and reconstruction.
     '''
-    image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_level + " " + reconstruction + "  3.0  " + filter_name + "/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
+    image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + " " + reconstruction + "  3.0  " + filter_name + "/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
     
     print(image_path)
     sortDict, sortedKeys = sortImages(image_path) #Sort images
@@ -145,18 +159,19 @@ def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
     dataset = pydicom.dcmread(final_path)
     image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
     plt.axis('off')
-    plt.title(reconstruction + " " + filter_name + " " + dose_level)
+    plt.title(dose_level, color = 'white')
     plt.gcf().set_facecolor("black")
     plt.imshow(image, cmap='Greys_r', vmin=-100, vmax=200) #Greys_r for reversed color bar. -1000 HU should be black and not white. 
 
 def show_dicom_all_dose():
-    plt.figure()
+    fig = plt.figure()
+    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], color='white', fontsize=16)
     plt.subplot(1,3,1)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], 'CTDI1')
+    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '40 mGy')
     plt.subplot(1,3,2)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], 'CTDI2')
+    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '60 mGy')
     plt.subplot(1,3,3)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], 'CTDI3')
+    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '80 mGy')
     
 ##############################################
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -195,7 +210,6 @@ while True:
         elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
             print('Filter and reconstruction not compatible')
         else:
-            print(value['dose_level']=='ALL')
             plt.figure()
             show_dicom(value['scanner'], value['filter_type'], value['rec_type'], value['dose_level'])
     
