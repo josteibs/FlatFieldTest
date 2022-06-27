@@ -18,14 +18,14 @@ layout = [
     [sg.Text("Pick scanner: ")], 
     [sg.Combo(['Siemens AS+', 'Siemens Flash'], default_value = 'Siemens AS+', key='scanner')],
     [sg.Text("Choose reconstruction: ")],
-    [sg.Combo(['FBP', 'IR1', 'IR2'], default_value = 'FBP', key='rec_type')],
+    [sg.Combo(['FBP', 'IR1', 'IR2', 'IR4'], default_value = 'FBP', key='rec_type')],
     #All filters available
     [sg.Text("Choose filter: ")], 
     [sg.Combo(['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h', 
               'J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s'], default_value = 'H10s', key='filter_type')],
     [sg.Button('Plot NPS', key='-NPS_BUTTON-')],
     [],
-    [sg.Button('Plot all FBP', key='-FBP_ALL-'), sg.Button('Plot all IR1', key='-IR1_ALL-'), sg.Button('Plot all IR2', key='-IR2_ALL-')],
+    [sg.Button('Plot all FBP', key='-FBP_ALL-'), sg.Button('Plot all IR1', key='-IR1_ALL-'), sg.Button('Plot all IR2', key='-IR2_ALL-'), sg.Button('Plot all IR4', key='-IR4_ALL-')],
     [sg.Text("Choose dose level: "), sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = 'ALL', key='dose_level'), sg.Button('Test image', key='-IMAGE-')]
     
 ]
@@ -81,7 +81,7 @@ def plot_NPS_dose_FBP_all():
     #Plotting all NPS vs Dose for FBP
     onePlot=False
     fig = plt.figure()
-    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    fig.suptitle(value['scanner'] + ' with ' + 'FBP', fontsize=16)
     #
     plot_NPS_dose(value['scanner'], 'H10s', 'FBP', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'H20s', 'FBP', onePlot, 2)
@@ -98,7 +98,7 @@ def plot_NPS_dose_IR1_all():
     #Plotting all NPS vs Dose for IR1
     onePlot=False
     fig = plt.figure()
-    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    fig.suptitle(value['scanner'] + ' with ' + 'IR1', fontsize=16)
     #
     plot_NPS_dose(value['scanner'], 'J30s', 'IR1', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'J37s', 'IR1', onePlot, 2)
@@ -114,7 +114,7 @@ def plot_NPS_dose_IR2_all():
     #Plotting all NPS vs Dose for IR2
     onePlot=False
     fig = plt.figure()
-    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], fontsize=16)
+    fig.suptitle(value['scanner'] + ' with ' + 'IR2', fontsize=16)
     #
     plot_NPS_dose(value['scanner'], 'J30s', 'IR2', onePlot, 1)
     plot_NPS_dose(value['scanner'], 'J37s', 'IR2', onePlot, 2)
@@ -124,6 +124,22 @@ def plot_NPS_dose_IR2_all():
     plot_NPS_dose(value['scanner'], 'J70h', 'IR2', onePlot, 6)
     plot_NPS_dose(value['scanner'], 'Q30s', 'IR2', onePlot, 7)
     plot_NPS_dose(value['scanner'], 'Q33s', 'IR2', onePlot, 8)
+    plt.show()
+    
+def plot_NPS_dose_IR4_all():
+    #Plotting all NPS vs Dose for IR2
+    onePlot=False
+    fig = plt.figure()
+    fig.suptitle(value['scanner'] + ' with ' + 'IR4', fontsize=16)
+    #
+    plot_NPS_dose(value['scanner'], 'J30s', 'IR4', onePlot, 1)
+    plot_NPS_dose(value['scanner'], 'J37s', 'IR4', onePlot, 2)
+    plot_NPS_dose(value['scanner'], 'J40s', 'IR4', onePlot, 3)
+    plot_NPS_dose(value['scanner'], 'J45s', 'IR4', onePlot, 4)
+    plot_NPS_dose(value['scanner'], 'J49s', 'IR4', onePlot, 5)
+    plot_NPS_dose(value['scanner'], 'J70h', 'IR4', onePlot, 6)
+    plot_NPS_dose(value['scanner'], 'Q30s', 'IR4', onePlot, 7)
+    plot_NPS_dose(value['scanner'], 'Q33s', 'IR4', onePlot, 8)
     plt.show()
 
 ##############################################
@@ -201,6 +217,9 @@ while True:
     
     if event == '-IR2_ALL-':
         plot_NPS_dose_IR2_all()
+    
+    if event == '-IR4_ALL-':
+        plot_NPS_dose_IR4_all()
         
     #IMAGES FOR CERTAIN DOSE
     if event == '-IMAGE-' and not value['dose_level']=='ALL':
