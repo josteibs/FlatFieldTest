@@ -21,8 +21,8 @@ layout = [
     [sg.Combo(['FBP', 'IR1', 'IR2', 'IR4'], default_value = 'FBP', key='rec_type')],
     #All filters available
     [sg.Text("Choose filter: ")], 
-    [sg.Combo(['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h', 
-              'J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s'], default_value = 'H10s', key='filter_type')],
+    [sg.Combo(['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h'], default_value = 'H10s', key='filter_type'), 
+     sg.Combo(['J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s'], default_value = 'J30s', key='filter_type_IR')], 
     [sg.Button('Plot NPS', key='-NPS_BUTTON-')],
     [],
     [sg.Button('Plot all FBP', key='-FBP_ALL-'), sg.Button('Plot all IR1', key='-IR1_ALL-'), sg.Button('Plot all IR2', key='-IR2_ALL-'), sg.Button('Plot all IR4', key='-IR4_ALL-')],
@@ -37,7 +37,8 @@ dose_dict = {
     
 }
 
-window = sg.Window('NPS vs Dose', layout, size=(500,350))
+window = sg.Window('NPS vs Dose', layout, size=(500,350)).Finalize()
+
 
 ##############################################
 #NPS FUNCTIONS
@@ -93,7 +94,6 @@ def plot_NPS_dose_FBP_all():
     plot_NPS_dose(value['scanner'], 'H70h', 'FBP', onePlot, 8)
     plt.show()
     
-
 def plot_NPS_dose_IR1_all():
     #Plotting all NPS vs Dose for IR1
     onePlot=False
@@ -181,13 +181,19 @@ def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
 
 def show_dicom_all_dose():
     fig = plt.figure()
-    fig.suptitle(value['scanner'] + ' with ' + value['rec_type'], color='white', fontsize=16)
+    filter_name = ''
+    if value['rec_type']=='FBP':
+        filter_name = value['filter_type']
+    else:
+        filter_name = value['filter_type_IR']
+        
+    fig.suptitle(f"{value['scanner']} with {value['rec_type']} and {filter_name}" , color='white', fontsize=16)
     plt.subplot(1,3,1)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '40 mGy')
+    show_dicom(value['scanner'], filter_name, value['rec_type'], '40 mGy')
     plt.subplot(1,3,2)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '60 mGy')
+    show_dicom(value['scanner'], filter_name, value['rec_type'], '60 mGy')
     plt.subplot(1,3,3)
-    show_dicom(value['scanner'], value['filter_type'], value['rec_type'], '80 mGy')
+    show_dicom(value['scanner'], filter_name, value['rec_type'], '80 mGy')
     
 ##############################################
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -197,16 +203,16 @@ def show_dicom_all_dose():
 while True:
     event,value= window.read()
     
+    #if value['rec_type'] == 'IR1' or value['rec_type'] == 'IR1':
+        
     #For spesific NPS-button press. 
     if event == '-NPS_BUTTON-':
         #Make sure file exist.
-        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
-            print('Filter and reconstruction not compatible')
-        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
-            print('Filter and reconstruction not compatible')
+        if value['rec_type']=='FBP':
+            plot_NPS_dose(value['scanner'], value['filter_type'], value['rec_type'])
             
         else:
-            plot_NPS_dose(value['scanner'], value['filter_type'], value['rec_type'])
+            plot_NPS_dose(value['scanner'], value['filter_type_IR'], value['rec_type'])
             
     #When one of the "plot all"-buttons are pressed.
     if event == '-FBP_ALL-':
@@ -224,23 +230,15 @@ while True:
     #IMAGES FOR CERTAIN DOSE
     if event == '-IMAGE-' and not value['dose_level']=='ALL':
         #Make sure file exist
-        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
-            print('Filter and reconstruction not compatible')
-        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
-            print('Filter and reconstruction not compatible')
-        else:
-            plt.figure()
+        plt.figure()
+        if value['rec_type']=='FBP':
             show_dicom(value['scanner'], value['filter_type'], value['rec_type'], value['dose_level'])
+        else:
+            show_dicom(value['scanner'], value['filter_type_IR'], value['rec_type'], value['dose_level'])
     
     #IMAGES FOR ALL DOSES
     if event == '-IMAGE-' and value['dose_level']=='ALL':
-        #Make sure file exist
-        if value['rec_type']=='FBP' and (value['filter_type'][0]=='J' or value['filter_type'][0]=='Q'):
-            print('Filter and reconstruction not compatible')
-        elif (value['rec_type']=='IR1' or value['rec_type']=='IR2') and value['filter_type'][0]=='H':
-            print('Filter and reconstruction not compatible')
-        else:
-            show_dicom_all_dose()
+        show_dicom_all_dose()
     
     #break
     if event == sg.WIN_CLOSED:
