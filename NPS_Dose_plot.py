@@ -31,13 +31,15 @@ layout = [
     [sg.Combo([], enable_events = True, key='rec_type', size = (15,0))],
     #All filters available
     [sg.Text("Choose filter: ")], 
-    [sg.Combo([], key='filter_type', size=(15,1))], 
+    [sg.Combo([], key='filter_type', size=(15,1))],
+    #Dose
+    [sg.Text("Choose dose level: ")], 
+    [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = 'ALL', key='dose_level')], 
     #NPS plots
-    [sg.Button('Plot NPS', key='-NPS_simple-', disabled = True, size=(15,1))],
+    [sg.Button('Plot NPS', key='-NPS_single-', disabled = True, size=(15,1))],
     [sg.Button('Plot NPS all filters', key='-NPS_ALL-', disabled = True, size=(15,0))],
     #Show image
-    [sg.Text("Choose dose level: "), sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = 'ALL', key='dose_level'), 
-     sg.Button('Test image', key='-IMAGE-')]
+    [sg.Button('Test image', key='-IMAGE-')]
     
 ]
 
@@ -54,30 +56,32 @@ window = sg.Window('NPS vs Dose', layout, size=(500,350)).Finalize()
 ##############################################
 #NPS FUNCTIONS
 ##############################################
+def plot_NPS(scanner_name, dose, reconstruction, filter_name, graph_color):
+    try:
+        dose_path = f"../NPS tabeller 22/{scanner_name}/{dose_dict[dose]}/"
+        #Loading dose data.
+        df = pd.read_excel(dose_path + reconstruction + '/' + filter_name + '.ods')
+        #plot
+        plt.plot(df['F'], df['NPSTOT'], label= dose, color = graph_color)
+    except:
+        print(f'NPS for {scanner_name}, {dose}, {reconstruction} and {filter_name} is missing.')
+
 def plot_NPS_dose(scanner_name, filter_name, reconstruction, onePlot=True, index=0):
     #NOTE: The onePlot parameter is used to make sure all plots are placed on the same figure, when several gaphs are plotted.
-    #the index parameter is used to place the plot within the subfigure
+    #the index parameter is used to place the plot within the subfigure    
     
-    #File path to dose folders level 1, 2 and 3.
-    dose1_path = r"../NPS tabeller 22/"+scanner_name+"/CTDI1/"
-    dose2_path = r"../NPS tabeller 22/"+scanner_name+"/CTDI2/"
-    dose3_path = r"../NPS tabeller 22/"+scanner_name+"/CTDI3/"
     
-    #Loading dose data 
-    df1 = pd.read_excel(dose1_path + reconstruction + '/' + filter_name + '.ods')
-    df2 = pd.read_excel(dose2_path + reconstruction + '/' + filter_name + '.ods')
-    df3 = pd.read_excel(dose3_path + reconstruction + '/' + filter_name + '.ods')
     
-    #Plotting NPS curves
     if onePlot==True:   
         plt.figure()
         plt.title(filter_name + ' with ' + reconstruction)
     if onePlot==False:
         plt.subplot(2,4,index)
         plt.title(filter_name)
-    plt.plot(df1['F'], df1['NPSTOT'], label='40 mGy', color='green')
-    plt.plot(df1['F'], df2['NPSTOT'], label='60 mGy', color='steelblue')
-    plt.plot(df1['F'], df3['NPSTOT'], label='80 mGy', color='purple')
+        
+    plot_NPS(scanner_name, '40 mGy', reconstruction, filter_name, 'green')
+    plot_NPS(scanner_name, '60 mGy', reconstruction, filter_name, 'steelblue')
+    plot_NPS(scanner_name, '80 mGy', reconstruction, filter_name, 'purple')
     
     
     plt.grid() 
@@ -143,9 +147,13 @@ def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
     elif scanner_name == 'Canon Prime':
         image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + "/" + reconstruction + "/" + filter_name + "/*"
     
-    sortDict, sortedKeys = sortImages(image_path) #Sort images
-    
-    final_path = sortDict[sortedKeys[5]]
+    try:
+        sortDict, sortedKeys = sortImages(image_path) #Sort images
+        final_path = sortDict[sortedKeys[5]]
+    except:
+        print(f'NPS for {scanner_name}, {dose_level}, {reconstruction} and {filter_name} is missing.')
+        
+        return
     
     dataset = pydicom.dcmread(final_path)
     image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
@@ -155,8 +163,7 @@ def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
     plt.imshow(image, cmap='Greys_r', vmin=-100, vmax=200) #Greys_r for reversed color bar. -1000 HU should be black and not white. 
 
 def show_dicom_all_dose():
-    fig = plt.figure()
-        
+    fig = plt.figure()    
     fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
     plt.subplot(1,3,1)
     show_dicom(values['scanner'], values['filter_type'], values['rec_type'], '40 mGy')
@@ -199,8 +206,8 @@ while True:
             window['rec_type'].update(value = '', values = rec_liste)
             window['filter_type'].update(value ='', values = [])
             
-        #Disables NPS button if scanner is switched. 
-        window['-NPS_simple-'].update(disabled = True)
+        #Disables NPS button if scanner is switched.
+        window['-NPS_single-'].update(disabled = True)
         window['-NPS_ALL-'].update(disabled = True)
         
     #Reconstruction choice 
@@ -218,8 +225,8 @@ while True:
             window['filter_type'].update(value = filter_list[0], values = filter_list)
         
         
-        #Enables button if rec and filter is choosen. 
-        window['-NPS_simple-'].update(disabled = False)
+        #Enables button if rec and filter is choosen.
+        window['-NPS_single-'].update(disabled = False)
         window['-NPS_ALL-'].update(disabled = False)
     
         
@@ -228,8 +235,20 @@ while True:
     ##############################################################
     
     #For spesific NPS-button press. 
-    if event == '-NPS_simple-':
-        plot_NPS_dose(values['scanner'], values['filter_type'], values['rec_type'])
+    if event == '-NPS_single-':
+        
+        if values['dose_level'] == 'ALL':
+            plot_NPS_dose(values['scanner'], values['filter_type'], values['rec_type'])
+        
+        else:
+            plt.figure()
+        
+            plot_NPS(values['scanner'], values['dose_level'], values['rec_type'], values['filter_type'], 'steelblue')
+        
+            plt.grid() 
+            plt.ylabel('NPS')
+            plt.xlabel(r'fq (mm$^{-1})$')
+            plt.legend()
         
             
     #NPS plot for all filters.
