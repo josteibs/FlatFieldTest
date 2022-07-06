@@ -24,22 +24,24 @@ filter_canon = ['FC20', 'FC21', 'FC22', 'FC23', 'FC24', 'FC25', 'FC26']
 ##############################################
 layout = [
     #scanners
-    [sg.Text("Pick scanner: ")], 
-    [sg.Combo(scanner, enable_events = True, key='scanner', size=(15,0))],
+    [sg.Text("Choose scanner: "), sg.Push(), sg.Text("Choose scanner to match:"), sg.Push()], 
+    [sg.Combo(scanner, enable_events = True, key='scanner', size=(15,0)), sg.Push(), sg.Combo(scanner, enable_events = True, key='scanner2', size=(15,0)), sg.Push()],
     #reconstructions
     [sg.Text("Choose reconstruction: ")],
     [sg.Combo([], enable_events = True, key='rec_type', size = (15,0))],
     #All filters available
-    [sg.Text("Choose filter: ")], 
+    [sg.Text("Choose filter: "), sg.Push(), sg.Text('', key = '-OUTPUT-', font = ("Arial", 20)), sg.Push()], 
     [sg.Combo([], key='filter_type', size=(15,1))],
     #Dose
     [sg.Text("Choose dose level: ")], 
-    [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = 'ALL', key='dose_level')], 
+    [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = '60 mGy', key='dose_level')], 
     #NPS plots
     [sg.Button('Plot NPS', key='-NPS_single-', disabled = True, size=(15,1))],
     [sg.Button('Plot NPS all filters', key='-NPS_ALL-', disabled = True, size=(15,0))],
     #Show image
-    [sg.Button('Test image', key='-IMAGE-')]
+    [sg.Button('Test image', key='-IMAGE-', disabled = True, size = (15,2)), sg.Push(), 
+     sg.Button('Test image 2', key='-IMAGE2-', disabled = True, size = (15,2))],
+    [sg.Button('Find best filter match', key='-FILTERMATCH-', disabled = True, size=(15,2))]
     
 ]
 
@@ -50,7 +52,7 @@ dose_dict = {
     
 }
 
-window = sg.Window('NPS vs Dose', layout, size=(500,350)).Finalize()
+window = sg.Window('NPS vs Dose', layout, size=(500,400)).Finalize()
 
 
 ##############################################
@@ -172,6 +174,25 @@ def show_dicom_all_dose():
     plt.subplot(1,3,3)
     show_dicom(values['scanner'], values['filter_type'], values['rec_type'], '80 mGy')
     
+##############################################
+#Find best filtermatch
+##############################################
+def find_best_match(scanner1, scanner2):
+    file_path = f'../Results AVG/Matching {scanner1} all/With {scanner2} all/'
+    
+    #Opening csv file from filtermatching_NPS.py
+    df = pd.read_csv(f'{file_path}Matching table {scanner1}all-{scanner2}all.csv', sep=';',header=None)
+    
+    #merging rec and filter
+    rec_filter = f"{values['rec_type']} {values['filter_type']}"
+    
+    index=0
+    for element in df.values[:,1]:
+        if element == rec_filter:
+            return df.values[index,2]
+        index+=1
+    
+    return 0
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -209,6 +230,8 @@ while True:
         #Disables NPS button if scanner is switched.
         window['-NPS_single-'].update(disabled = True)
         window['-NPS_ALL-'].update(disabled = True)
+        window['-IMAGE-'].update(disabled = True)
+        window['-FILTERMATCH-'].update(disabled = True)
         
     #Reconstruction choice 
     if event == 'rec_type':
@@ -228,7 +251,29 @@ while True:
         #Enables button if rec and filter is choosen.
         window['-NPS_single-'].update(disabled = False)
         window['-NPS_ALL-'].update(disabled = False)
+        window['-IMAGE-'].update(disabled = False)
+        
+        #Check if matching scanner is chosen before making button available. 
+        if values['scanner2'] != '':
+            window['-FILTERMATCH-'].update(disabled = False)
+            
+        
+    #Update button for filtermatching when matching scanner is chosen.
+    if event == 'scanner2':
+        if values['filter_type'] != '':
+            window['-FILTERMATCH-'].update(disabled = False)
+        else:
+            window['-FILTERMATCH-'].update(disabled = True)
     
+    
+    ##############################################################
+    #FILTER MATCHING
+    ############################################################## 
+    if event == '-FILTERMATCH-':
+        best_rec_filter = find_best_match(values['scanner'], values['scanner2'])
+        
+        window['-OUTPUT-'].update(best_rec_filter)  
+        window['-IMAGE2-'].update(disabled = False) #enables test image for matching scanner
         
     ##############################################################
     #NPS PLOTTING
@@ -257,14 +302,23 @@ while True:
     
         
     ##############################################################
-    #NPS PLOTTING
+    #IMAGES
     ##############################################################
     
     #IMAGES FOR CERTAIN DOSE
     if event == '-IMAGE-' and not values['dose_level']=='ALL':
-        plt.figure()
+        fig = plt.figure()
+        fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
         show_dicom(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
         
+    if event == '-IMAGE2-':
+        best_rec_filter = window['-OUTPUT-'].get().split()
+        best_rec = best_rec_filter[0]
+        best_filter = best_rec_filter[1]
+        
+        fig = plt.figure()
+        fig.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
+        show_dicom(values['scanner2'], best_filter, best_rec, values['dose_level'])
     
     #IMAGES FOR ALL DOSES
     if event == '-IMAGE-' and values['dose_level']=='ALL':
