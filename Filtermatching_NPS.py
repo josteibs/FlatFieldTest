@@ -4,6 +4,11 @@ Created on Wed July 28 13:19:17 2021
 
 @author: Vilde Ragnvaldsen
 
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+#Updated for 22 project, 'CT filtermatching on head' by Jostein B. Steffensen (JBS)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 Sommarjobb Medisinsk fysikk
 Prosjekt: Filtermatching på gjennomsnitt NPS
 """
@@ -19,24 +24,24 @@ FOV = 220 #Reconstruction diameter (mm)
 R = 400 # Viewing distancce (mm)
 D = 300 #Size of displayed image (mm)
 
-N = 10 #Number of image slices to include in analysis 
+N = 12 #Number of image slices to include in analysis 
 
 #### CHOOSE WHICH TWO SCANNERS AND RECONSTRUCTION METHODS TO COMPARE ####
 # (OBS: MAKE SURE TO WRITE EXACTLY AS IN FOLDER)
 #Scanner1: "Old scanner" - Scanner to match
-scanner1 = "Siemens Flash" 
+scanner1 = "Siemens AS+" 
 recon1 = "all"  #Write "ALL" to include FBP and all levels of iterative reconstruction
 
 #Scanner2: "New scanner" - Scanner to find matching filters of
-scanner2 = "Siemens AS+"
+scanner2 = "Siemens Flash"
 recon2 = "all" #Write "ALL" to include FBP and all levels of iterative reconstruction
 
 #### WHERE TO SAVE RESULTS ####
-folder1 = "Results AVG"
+folder1 = "../Results AVG"
 folder2 = "Matching "+scanner1+' '+recon1
 folder3 = "With "+scanner2+' '+recon2
-date = time.strftime("%Y-%m-%d") #todays date (automatic)
-path = os.path.join(folder1, folder2, folder3, date)
+#date = time.strftime("%Y-%m-%d") #todays date (automatic)
+path = os.path.join(folder1, folder2, folder3)#, date)
 
 #Create folderpath if not already present
 try:
@@ -105,7 +110,8 @@ def plot_NPS(data, title):
     plt.ylabel('NPS')
     plt.xlabel('Spatial frequency (mm$^{-1}$)')
     plt.title('Noise Power Spectrum for {}'.format(title))
-    plt.show()
+    #plt.show()
+    plt.close()
     return 0
 
 def plot_two_avg(f, data1, data2, label1, label2):
@@ -117,84 +123,32 @@ def plot_two_avg(f, data1, data2, label1, label2):
     plt.title('Noise Power Spectrum') 
     plt.legend()
     plt.savefig(os.path.join(path, "NPS - {}.png".format(label1 +' - '+ label2)), dpi=300, bbox_inches="tight")
-    plt.show()
+    #plt.show()
+    plt.close()
     return 0
 
-"""
-#Plot NPS of Siemens B10s and B20s (for presentation) 
-NPS_B10s = pd.read_excel('NPS tabeller (ImageQC)/Siemens/FBP/B10s.xlsx', index_col='F')
-NPS_B10s = fix(NPS_B10s, N)
-freq = NPS_B10s.index.to_numpy()
-NPS_B10s = (NPS_B10s['AVG']).to_numpy()
 
-##B10s before normalisation and filtration
-plt.figure()
-plt.plot(freq, NPS_B10s, label = "Siemens B10s") 
-plt.xlabel('Spatial frequency (mm$^{-1}$)')
-plt.ylabel('NPS')
-plt.title('Noise Power Spectrum') 
-plt.legend()
-plt.savefig(os.path.join(path, "NPS - Siemens B10 - before.png"), dpi=300, bbox_inches="tight")
-plt.show()
-
-NPS_B10s= normalise(freq, NPS_B10s)
-##B10s after normalisation 
-plt.figure()
-plt.plot(freq, NPS_B10s, label = "Siemens B10s") 
-plt.xlabel('Spatial frequency (mm$^{-1}$)')
-plt.ylabel('NPS')
-plt.title('Noise Power Spectrum, normalised') 
-plt.legend()
-plt.savefig(os.path.join(path, "NPS - Siemens B10 - normalised.png"), dpi=300, bbox_inches="tight")
-plt.show()
-
-NPS_B10s= filtrate(freq, NPS_B10s)
-##B10s after normalisation and filtration
-plt.figure()
-plt.plot(freq, NPS_B10s, label = "Siemens B10s") 
-plt.xlabel('Spatial frequency (mm$^{-1}$)')
-plt.ylabel('NPS')
-plt.title('Noise Power Spectrum, normalised and filtrated') 
-plt.legend()
-plt.savefig(os.path.join(path, "NPS - Siemens B10 - after.png"), dpi=300, bbox_inches="tight")
-plt.show()
-
-NPS_B50s = pd.read_excel('NPS tabeller (ImageQC)/Siemens/FBP/B50s.xlsx', index_col='F')
-NPS_B50s = fix(NPS_B50s, N)
-NPS_B50s = (NPS_B50s['AVG']).to_numpy()
-NPS_B50s = filtrate(freq, normalise(freq, NPS_B50s))
-plot_two_avg(freq,NPS_B10s, NPS_B50s, "Siemens B10", "Siemens B50")
-
-#Plot Human Visual Responce Function
-VisualResponceFunction = V(freq, FOV, R, D)
-plt.figure()
-plt.plot(freq, VisualResponceFunction, color = 'red')
-plt.xlabel('Spatial frequency (mm$^{-1}$)')
-plt.title('Human Visual Responce Function')
-plt.savefig(os.path.join(path, "VisualResponceFunction.png"), dpi=300, bbox_inches="tight")
-plt.show()
-"""
 ####LIST DIR PATHS TO FILES THAT WILL BE INCLUDED IN THE ANALYSIS
-folder_scanner1 = 'NPS tabeller (ImageQC)/'+scanner1
+folder_scanner1 = f'../NPS tabeller 22/{scanner1}/CTDI2'
 filepathlist1 = []
 if recon1 == "ALL" or recon1 == "all":
     for subdir, dirs, files in os.walk(folder_scanner1):
         for d in dirs:
-            for filepath in glob.iglob(folder_scanner1+'/'+d+'/*.xlsx'): 
+            for filepath in glob.iglob(folder_scanner1+'/'+d+'/*.ods'): 
                 filepathlist1.append(filepath)
 else:
-    for filepath in glob.iglob(folder_scanner1+'/'+recon1+'/*.xlsx'): 
+    for filepath in glob.iglob(folder_scanner1+'/'+recon1+'/*.ods'): 
         filepathlist1.append(filepath)
 
-folder_scanner2 = 'NPS tabeller (ImageQC)/'+scanner2
+folder_scanner2 = f'../NPS tabeller 22/{scanner2}/CTDI2'
 filepathlist2 = []
 if recon2 == "ALL" or recon2 == "all":
     for subdir, dirs, files in os.walk(folder_scanner2):
         for d in dirs:
-            for filepath in glob.iglob(folder_scanner2+'/'+d+'/*.xlsx'): 
+            for filepath in glob.iglob(folder_scanner2+'/'+d+'/*.ods'): 
                 filepathlist2.append(filepath)
 else:
-    for filepath in glob.iglob(folder_scanner2+'/'+recon2+'/*.xlsx'): 
+    for filepath in glob.iglob(folder_scanner2+'/'+recon2+'/*.ods'): 
         filepathlist2.append(filepath)
 
 number_of_filters1 = len(filepathlist1)
@@ -226,7 +180,11 @@ for filepath1 in filepathlist1: #iterate through filters of scanner 1
     NPS_data1 = (NPS_data1['AVG']).to_numpy() #Keep only the average NPS
     NPS_data1 = filtrate(freq, normalise(freq, NPS_data1))
     
-    namefilter1 = os.path.splitext(os.path.basename(filepath1))[0] #Extract name of filter from directory 
+    namefilter1 = os.path.splitext(os.path.basename(filepath1))[0] #Extract name of filter from directory
+    namerec1 = os.path.split(os.path.split(filepath1)[0])[1] #reconstruction name 220706 JBS
+    namefilter1 = f'{namerec1} {namefilter1}'
+    print('pause')
+    
     listfilters1.append(namefilter1) #When iterating through filters in data1, append name of filter in list
     #Variables for scoring the best matches:
     bestRMSD = 100 
@@ -241,6 +199,8 @@ for filepath1 in filepathlist1: #iterate through filters of scanner 1
         NPS_data2 = filtrate(freq, normalise(freq, NPS_data2))
     
         namefilter2 = os.path.splitext(os.path.basename(filepath2))[0]
+        namerec2 = os.path.split(os.path.split(filepath2)[0])[1] #reconstruction name 220706 JBS
+        namefilter2 = f'{namerec2} {namefilter2}'
         if i==0: #On first iteration through filters in data1, append name of filter in list
             listfilters2.append(namefilter2)
             
@@ -258,7 +218,7 @@ for filepath1 in filepathlist1: #iterate through filters of scanner 1
             bestmatch_data2 = NPS_data2
             bestmatch_name = namefilter2
         j+=1 #Go to next filter for data2
-    #For each filter of scanner 1, get the best match of scanner 2 and plot NPS curves for the two:
+    #For each filter of scanner 1, get the best match of scanner 2 and plot NPS curves for the two:f
     plot_two_avg(freq, NPS_data1, bestmatch_data2, (scanner1+' '+namefilter1), (scanner2+' '+bestmatch_name))
     #Put best match in list:
     listmatches.append(bestmatch_name)
@@ -274,7 +234,7 @@ match_scanner1[scanner1] = listfilters1
 match_scanner1[scanner2] = listmatches
 match_scanner1['RMSD (mm^2)'] = listRMSD
 match_scanner1['|PFD| (mm^{-1})'] = listPFD 
-match_scanner1.to_csv(os.path.join(path, "Matching table "+scanner1+recon1+"-"+scanner2+recon2+".csv"), sep=' ')
+match_scanner1.to_csv(os.path.join(path, "Matching table "+scanner1+recon1+"-"+scanner2+recon2+".csv"), sep=';')
 print(match_scanner1)
 
 #Plot RMSD heatmaps
