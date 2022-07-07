@@ -12,6 +12,8 @@ import pandas as pd
 import PySimpleGUI as sg
 import pydicom
 import glob
+import numpy as np
+import time 
 
 #Available scanners and filters
 scanner = ['Siemens AS+', 'Siemens Flash', 'Canon Prime']
@@ -138,6 +140,78 @@ def sortImages(pathname):
     sortedKeys = sorted(sortDict.keys())
     return sortDict, sortedKeys 
 
+#Scroll through images
+def image_scroll(scanner_name, filter_name, reconstruction, dose_level):
+
+    #this function is inspired by https://matplotlib.org/stable/gallery/event_handling/image_slices_viewer.html     
+    
+    if (scanner_name == 'Siemens AS+' or scanner_name == 'Siemens Flash'):
+        
+        image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + " " + reconstruction + "  3.0  " + filter_name + "/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
+    
+    elif scanner_name == 'Canon Prime':
+        image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + "/" + reconstruction + "/" + filter_name + "/*"
+    
+    try:
+        sortDict, sortedKeys = sortImages(image_path) #Sort images
+        
+    except:
+        print(f'NPS for {scanner_name}, {dose_level}, {reconstruction} and {filter_name} is missing.')
+        
+        return
+   
+     
+    dataset = pydicom.dcmread(sortDict[sortedKeys[0]])
+    image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
+    
+    #dimentions of image cube
+    z_dimention = len(sortedKeys)
+    x_dimention = image.shape[0]
+    y_dimention = image.shape[1]
+    
+    #Collecting all dcm files from same series in the same numpy cube
+    image_cube = np.empty([x_dimention, y_dimention, z_dimention])
+    i = 0
+    for key in sortedKeys:
+        dataset = pydicom.dcmread(sortDict[key])
+        image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
+        image_cube[:,:,i] = image
+        i += 1
+        
+    class IndexTracker:
+        def __init__(self, ax, X):
+            self.ax = ax
+            ax.set_title('use scroll wheel to navigate images')
+
+            self.X = X
+            rows, cols, self.slices = X.shape
+            self.ind = self.slices//2
+            plt.gcf().set_facecolor("black")
+            self.im = ax.imshow(self.X[:, :, self.ind], cmap='Greys_r', vmin=-100, vmax=200)
+            self.update()
+
+        def on_scroll(self, event):
+            
+            if event.button == 'up':
+                self.ind = (self.ind + 1) % self.slices
+            else:
+                self.ind = (self.ind - 1) % self.slices
+            self.update()
+
+        def update(self):
+            self.im.set_data(self.X[:, :, self.ind])
+            self.ax.set_ylabel('slice %s' % self.ind)
+            self.im.axes.figure.canvas.draw()
+
+
+    fig, ax = plt.subplots(1, 1)
+
+    X = image_cube
+
+    tracker = IndexTracker(ax, X)
+    return fig, ax, tracker
+
+#Show single dicom
 def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
     '''
     Displays the 6th image in a sequence for a certain dose, filter and reconstruction.
@@ -270,10 +344,16 @@ while True:
     #FILTER MATCHING
     ############################################################## 
     if event == '-FILTERMATCH-':
-        best_rec_filter = find_best_match(values['scanner'], values['scanner2'])
+        if values['scanner'] != values['scanner2']:
+            best_rec_filter = find_best_match(values['scanner'], values['scanner2'])
+            window['-OUTPUT-'].update(best_rec_filter)  
+            window['-IMAGE2-'].update(disabled = False) #enables test image for matching scanner
+            
+        else:
+            window['-OUTPUT-'].update('Pick different scanner.')
+            
         
-        window['-OUTPUT-'].update(best_rec_filter)  
-        window['-IMAGE2-'].update(disabled = False) #enables test image for matching scanner
+        
         
     ##############################################################
     #NPS PLOTTING
@@ -307,18 +387,34 @@ while True:
     
     #IMAGES FOR CERTAIN DOSE
     if event == '-IMAGE-' and not values['dose_level']=='ALL':
-        fig = plt.figure()
+        #fig = plt.figure()
+        #fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
+        #show_dicom(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
+        
+        #making new tracker ID in order to open several images.
+        ID = time.time()
+        
+        fig, ax, globals()[f'tracker{ID}'] = image_scroll(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
         fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
-        show_dicom(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
+        fig.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
+        plt.show()
         
     if event == '-IMAGE2-':
         best_rec_filter = window['-OUTPUT-'].get().split()
-        best_rec = best_rec_filter[0]
-        best_filter = best_rec_filter[1]
+        best_rec = ' '.join(best_rec_filter[:-1]) #Fixing if the reconstruction name has more than one word.
+        best_filter = best_rec_filter[-1]
         
-        fig = plt.figure()
-        fig.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
-        show_dicom(values['scanner2'], best_filter, best_rec, values['dose_level'])
+        #fig = plt.figure()
+        #fig.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
+        #show_dicom(values['scanner2'], best_filter, best_rec, values['dose_level'])
+        
+        #making new tracker ID in order to open several images.
+        ID = time.time()
+        
+        fig2, ax2, globals()[f'tracker{ID}'] = image_scroll(values['scanner2'], best_filter, best_rec, values['dose_level'])
+        fig2.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
+        fig2.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
+        plt.show()
     
     #IMAGES FOR ALL DOSES
     if event == '-IMAGE-' and values['dose_level']=='ALL':
