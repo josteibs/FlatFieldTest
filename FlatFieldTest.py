@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import os, csv 
 import cv2
 import numpy as np
+from celluloid import Camera
 
 working_directory = os.getcwd()
 
@@ -46,20 +47,79 @@ class mammo_image:
        self.avg = round(self.frame.mean(), 2)
        self.SNR = round(self.avg/self.std, 2)
        
-       print(f' mean: {self.avg}, std: {self.std}, SNR: {self.SNR}, Max: {self.max}, Min: {self.min}')
+       print(f' i: {self.i1}, j: {self.j1}, mean: {self.avg:.2f}, std: {self.std:.2f}, SNR: {self.SNR}, Max: {self.max}, Min: {self.min}')
+       
        
     def frame_index(self, i1, i2, j1, j2):
-       self.frame = self.image[j1:j2, i1:i2]
+       self.frame = self.image[i1:i2+1, j1:j2+1]
        self.i1 = i1
        self.i2 = i2
        self.j1 = j1
        self.j2 = j2
+
+    def full_analyze(self):
+        '''
+        imCopy = np.copy(self.image)
+        fig = plt.figure()
+        camera = Camera(fig)
+        '''
+        pixel_step = 49
+        i_steps = self.image.shape[0] // pixel_step
+        j_steps = self.image.shape[1] // pixel_step
+        
+        #starting frame
+        i_start = 0
+        j_start = 0
+        i_end = 48
+        j_end = 48
+        
+        f = open('FlatFieldTest.txt', 'w')
+        
+        f.write(f'    i \t j \t mean \t std \t SNR \t Max \t Min \n')
+        
+        while (j_end < pixel_step*j_steps):
+            while (i_end < pixel_step*i_steps):
+                self.frame_index(i_start, i_end, j_start, j_end)
+                self.analyze()
+                
+                f.write(f'{self.i1:5} \t {self.j1:5} \t {self.avg:.2f} \t {self.std:.2f} \t {self.SNR:.2f} \t {self.max} \t {self.min} \n')
+                
+                i_start += pixel_step
+                i_end += pixel_step
+                
+                
+                
+                
+                
+                #figure stuff
+                '''
+                rect = cv2.rectangle(imCopy, (self.j1, self.i1), (self.j2, self.i2), (0,0,255), -1)
+                plt.ioff()
+                plt.gcf().set_facecolor("black")
+                plt.imshow(rect, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
+                camera.snap()
+                '''
+            j_start += pixel_step
+            j_end += pixel_step
+            i_start = 0
+            i_end = 48
+    
+        
+        #animation = camera.animate()
+        #animation.save('image_analyze.gif', writer ='imagemagick')
+        f.close()
        
     def frameshow(self):
-        img = self.image
-        cv2.rectangle(img, (self.i1, self.j1), (self.i2, self.j2), (0,0,255), -1)
         plt.figure()
-        plt.title('Image', color = 'white')
+        plt.title('pre rec', color = 'white')
+        plt.gcf().set_facecolor("black")
+        plt.imshow(self.frame, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
+        
+        img = self.image
+        rect = cv2.rectangle(img, (self.i1, self.j1), (self.i2, self.j2), (0,0,255), -1)
+        print(rect.shape)
+        plt.figure()
+        plt.title('post_rec', color = 'white')
         plt.gcf().set_facecolor("black")
         plt.imshow(self.frame, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
         
@@ -78,42 +138,6 @@ class mammo_image:
     def snr(self):
        return self.SNR 
         
-    
-'''
-class frame:
-    def __init__(self, image):
-        self.image = image #image should be a numpy array.
-        
-    def analyze(self):
-        self.max = np.argmax(self.image)
-        self.min = np.argmin(self.image)
-        self.std = round(self.image.std(), 2)
-        self.avg = round(self.image.mean(), 2)
-        self.SNR = round(self.avg/self.std, 2)
-        
-    def Max(self):
-        return self.max
-    
-    def Min(self):
-        return self.min
-    
-    def std(self):
-        return self.std
-    
-    def avg(self):
-        return self.avg
-    
-    def snr(self):
-        return self.SNR
-    
-        
-
-class pixel:
-    def __init__(self, x, y, value):
-        self.x = x
-        self.y = y
-        self.value = value
-'''            
 
 while True:
     
@@ -136,16 +160,21 @@ while True:
         
     if event == '-ANALYZE-':
         #try:
-        mammo_image.analyze()
-        mammo_image.frame_index(0,48,0,48)
-        mammo_image.analyze()
-        mammo_image.frameshow()
-        mammo_image.frame_index(0,49,49,97)
-        mammo_image.analyze()
-        mammo_image.frameshow()
-        mammo_image.frame_index(0,48,98,146)
+        #mammo_image.analyze()
+        #mammo_image.full_analyze()
+        
+        mammo_image.frame_index(2801,2850,0,48)
         mammo_image.analyze()
         mammo_image.frameshow()
+        '''
+        mammo_image.frame_index(0,48,49,97)
+        mammo_image.analyze()
+        mammo_image.frameshow()
+        
+        mammo_image.frame_index(0,48,49,97)
+        mammo_image.analyze()
+        mammo_image.frameshow()
+        '''
         #except:
            #3# print("Could not analyze")
             
