@@ -3,7 +3,8 @@
 Created on Mon Jun 20 09:19:25 2022
 
 @author: Jostein Steffensen
-Purpose: Open ods files and plot NPS curves. 
+Purpose: GUI for reading csv results from filtermatching_NPS.py. GUI displays best filtermatch to chosen scanner, reconstruction
+and filter. Images from both chosen filter and best match can be displayed. 
 """
 
 import matplotlib.pyplot as plt
@@ -15,31 +16,36 @@ import glob
 import numpy as np
 import time 
 
-#Available scanners and filters
-scanner = ['Siemens AS+', 'Siemens Flash', 'Canon Prime']
+#Available scanners and filters for head examinations
+scanner_h = ['Siemens AS+', 'Siemens Flash', 'Canon Prime']
 filter_FBP_siemens = ['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h']
 filter_IR_siemens = ['J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s']
 filter_canon = ['FC20', 'FC21', 'FC22', 'FC23', 'FC24', 'FC25', 'FC26']
 
+#Available scanners for body examinations
+scanner_b = ['Siemens AS+', 'Siemens Flash', 'Canon Prime', 'GE revolution']
 ##############################################
 #Layout
 ##############################################
 layout = [
+    #head or body
+    [sg.Text("Choose examination: ")],
+    [sg.Combo(["Head", "Body"], enable_events=True, key = 'examination', size=(15,0))],
     #scanners
     [sg.Text("Choose scanner: "), sg.Push(), sg.Text("Choose scanner to match:"), sg.Push()], 
-    [sg.Combo(scanner, enable_events = True, key='scanner', size=(15,0)), sg.Push(), sg.Combo(scanner, enable_events = True, key='scanner2', size=(15,0)), sg.Push()],
+    [sg.Combo([], enable_events = True, key='scanner', size=(15,0)), sg.Push(), sg.Combo([], enable_events = True, key='scanner2', size=(15,0)), sg.Push()],
     #reconstructions
     [sg.Text("Choose reconstruction: ")],
     [sg.Combo([], enable_events = True, key='rec_type', size = (15,0))],
     #All filters available
-    [sg.Text("Choose filter: "), sg.Push(), sg.Text('', key = '-OUTPUT-', font = ("Arial", 20)), sg.Push()], 
-    [sg.Combo([], key='filter_type', size=(15,1))],
+    [sg.Text("Choose filter: "), sg.Push(), sg.Text('', key = '-OUTPUT-', font = ("Arial", 15)), sg.Push()], 
+    [sg.Combo([], key='filter_type', size=(15,0))],
     #Dose
-    [sg.Text("Choose dose level: ")], 
-    [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = '60 mGy', key='dose_level')], 
+    [sg.Text("Dose level head: ")], 
+    [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = '60 mGy', key='dose_level', disabled=True)], 
     #NPS plots
-    [sg.Button('Plot NPS', key='-NPS_single-', disabled = True, size=(15,1))],
-    [sg.Button('Plot NPS all filters', key='-NPS_ALL-', disabled = True, size=(15,0))],
+    #[sg.Button('Plot NPS', key='-NPS_single-', disabled = True, size=(15,1))],
+    #[sg.Button('Plot NPS all filters', key='-NPS_ALL-', disabled = True, size=(15,0))],
     #Show image
     [sg.Button('Test image', key='-IMAGE-', disabled = True, size = (15,2)), sg.Push(), 
      sg.Button('Test image 2', key='-IMAGE2-', disabled = True, size = (15,2))],
@@ -54,12 +60,14 @@ dose_dict = {
     
 }
 
-window = sg.Window('NPS vs Dose', layout, size=(500,400)).Finalize()
+window = sg.Window('NPS vs Dose', layout, size=(500,430)).Finalize()
 
 
 ##############################################
 #NPS FUNCTIONS
 ##############################################
+
+'''
 def plot_NPS(scanner_name, dose, reconstruction, filter_name, graph_color):
     try:
         dose_path = f"../NPS tabeller 22/{scanner_name}/{dose_dict[dose]}/"
@@ -69,6 +77,7 @@ def plot_NPS(scanner_name, dose, reconstruction, filter_name, graph_color):
         plt.plot(df['F'], df['NPSTOT'], label= dose, color = graph_color)
     except:
         print(f'NPS for {scanner_name}, {dose}, {reconstruction} and {filter_name} is missing.')
+
 
 def plot_NPS_dose(scanner_name, filter_name, reconstruction, onePlot=True, index=0):
     #NOTE: The onePlot parameter is used to make sure all plots are placed on the same figure, when several gaphs are plotted.
@@ -125,7 +134,7 @@ def plot_NPS_dose_all():
     except:
         pass
     plt.show()
-
+'''
 ##############################################
 #Image functions
 ##############################################
@@ -147,21 +156,25 @@ def image_scroll(scanner_name, filter_name, reconstruction, dose_level):
     
     if (scanner_name == 'Siemens AS+' or scanner_name == 'Siemens Flash'):
         
-        image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + " " + reconstruction + "  3.0  " + filter_name + "/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
+        image_path = f"../CT bilder av Catphan/{values['examination']}/{scanner_name}/{dose_dict[dose_level]} {reconstruction}  3.0  {filter_name}/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
     
     elif scanner_name == 'Canon Prime':
-        image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + "/" + reconstruction + "/" + filter_name + "/*"
+        image_path = f"../CT bilder av Catphan/{values['examination']}/{scanner_name}/{dose_dict[dose_level]}/{reconstruction}/{filter_name}/*"
     
     try:
         sortDict, sortedKeys = sortImages(image_path) #Sort images
         
     except:
-        print(f'NPS for {scanner_name}, {dose_level}, {reconstruction} and {filter_name} is missing.')
+        print(f'File for {scanner_name}, {dose_level}, {reconstruction} and {filter_name} is missing.')
         
         return
    
      
-    dataset = pydicom.dcmread(sortDict[sortedKeys[0]])
+    try:
+        dataset = pydicom.dcmread(sortDict[sortedKeys[0]])
+    except:
+        print(f"File for {values['examination']}, {scanner_name}, {dose_level}, {reconstruction} and {filter_name} is missing.")
+        return
     image = dataset.pixel_array * dataset.RescaleSlope + dataset.RescaleIntercept
     
     #dimentions of image cube
@@ -252,7 +265,7 @@ def show_dicom_all_dose():
 #Find best filtermatch
 ##############################################
 def find_best_match(scanner1, scanner2):
-    file_path = f'../Results AVG/Matching {scanner1} all/With {scanner2} all/'
+    file_path = f'../Results AVG/{values["examination"]}/Matching {scanner1} all/With {scanner2} all/'
     
     #Opening csv file from filtermatching_NPS.py
     df = pd.read_csv(f'{file_path}Matching table {scanner1}all-{scanner2}all.csv', sep=';',header=None)
@@ -284,6 +297,17 @@ while True:
     ##############################################################
     #Update GUI
     ##############################################################
+    
+    #examination choice
+    if event == 'examination':
+        if values[event] == 'Head':
+            window['scanner'].update(value='', values=scanner_h)
+            window['scanner2'].update(value='', values=scanner_h)
+        
+        elif values[event] == 'Body':
+            window['scanner'].update(value='', values=scanner_b)
+            window['scanner2'].update(value='', values=scanner_b)
+    
     #Scanner choice 
     if event == 'scanner':
         if values[event] == 'Siemens AS+':
@@ -302,8 +326,8 @@ while True:
             window['filter_type'].update(value ='', values = [])
             
         #Disables NPS button if scanner is switched.
-        window['-NPS_single-'].update(disabled = True)
-        window['-NPS_ALL-'].update(disabled = True)
+        #window['-NPS_single-'].update(disabled = True)
+        #window['-NPS_ALL-'].update(disabled = True)
         window['-IMAGE-'].update(disabled = True)
         window['-FILTERMATCH-'].update(disabled = True)
         
@@ -323,8 +347,8 @@ while True:
         
         
         #Enables button if rec and filter is choosen.
-        window['-NPS_single-'].update(disabled = False)
-        window['-NPS_ALL-'].update(disabled = False)
+        #window['-NPS_single-'].update(disabled = False)
+        #window['-NPS_ALL-'].update(disabled = False)
         window['-IMAGE-'].update(disabled = False)
         
         #Check if matching scanner is chosen before making button available. 
@@ -358,7 +382,7 @@ while True:
     ##############################################################
     #NPS PLOTTING
     ##############################################################
-    
+    '''
     #For spesific NPS-button press. 
     if event == '-NPS_single-':
         
@@ -380,7 +404,7 @@ while True:
     if event == '-NPS_ALL-':
         plot_NPS_dose_all()
     
-        
+    '''   
     ##############################################################
     #IMAGES
     ##############################################################
@@ -392,29 +416,37 @@ while True:
         #show_dicom(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
         
         #making new tracker ID in order to open several images.
-        ID = time.time()
+        try:
+            ID = time.time()
         
-        fig, ax, globals()[f'tracker{ID}'] = image_scroll(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
-        fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
-        fig.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
-        plt.show()
+            fig, ax, globals()[f'tracker{ID}'] = image_scroll(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
+            fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
+            fig.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
+            plt.show()
+        
+        except:
+            print('An error occurred')
         
     if event == '-IMAGE2-':
-        best_rec_filter = window['-OUTPUT-'].get().split()
-        best_rec = ' '.join(best_rec_filter[:-1]) #Fixing if the reconstruction name has more than one word.
-        best_filter = best_rec_filter[-1]
+        try:
+            best_rec_filter = window['-OUTPUT-'].get().split()
+            best_rec = ' '.join(best_rec_filter[:-1]) #Fixing if the reconstruction name has more than one word.
+            best_filter = best_rec_filter[-1]
         
-        #fig = plt.figure()
-        #fig.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
-        #show_dicom(values['scanner2'], best_filter, best_rec, values['dose_level'])
+            #fig = plt.figure()
+            #fig.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
+            #show_dicom(values['scanner2'], best_filter, best_rec, values['dose_level'])
         
-        #making new tracker ID in order to open several images.
-        ID = time.time()
+            #making new tracker ID in order to open several images.
+            ID = time.time()
         
-        fig2, ax2, globals()[f'tracker{ID}'] = image_scroll(values['scanner2'], best_filter, best_rec, values['dose_level'])
-        fig2.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
-        fig2.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
-        plt.show()
+            fig2, ax2, globals()[f'tracker{ID}'] = image_scroll(values['scanner2'], best_filter, best_rec, values['dose_level'])
+            fig2.suptitle(f"{values['scanner2']} with {best_rec} and {best_filter}" , color='white', fontsize=16)
+            fig2.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
+            plt.show()
+            
+        except:
+            print('An error occurred')
     
     #IMAGES FOR ALL DOSES
     if event == '-IMAGE-' and values['dose_level']=='ALL':
