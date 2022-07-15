@@ -18,12 +18,29 @@ import time
 
 #Available scanners and filters for head examinations
 scanner_h = ['Siemens AS+', 'Siemens Flash', 'Canon Prime']
+#Filters
 filter_FBP_siemens = ['H10s', 'H20s', 'H30s', 'H37s', 'H40s', 'H50s', 'H60s', 'H70h']
 filter_IR_siemens = ['J30s', 'J37s', 'J40s', 'J45s', 'J49s', 'J70h', 'Q30s', 'Q33s']
 filter_canon = ['FC20', 'FC21', 'FC22', 'FC23', 'FC24', 'FC25', 'FC26']
 
 #Available scanners for body examinations
 scanner_b = ['Siemens AS+', 'Siemens Flash', 'Canon Prime', 'GE revolution']
+
+#Reconstruction
+rec_b_canon = ['ORG', 'AIDR 3D STD', 'AIDR 3D STR', 'AIDR 3D eSTD', 'UE0', 'AIDR 3D STD-UE0', 'AIDR 3D STR-UE0', 'AIDR 3D eSTD-UE0']
+rec_b_GE = ['FBP','ASIR_50','TF High','TF High med lungefilter','TF Low ms lungfilter']
+
+#Filters
+filter_GE = ['BONE', 'BONEPLUS', 'CHEST', 'DETAIL', 'EDGE', 'LUNG', 'SOFT', 'STANDARD', 'ULTRA']
+filter_b_FBP_siemens_AS = ['B10f', 'B26f', 'B30f', 'B31f', 'B40f', 'B50f', 'B70f']
+filter_b_IR_siemens_AS = ['I26f', 'I30f', 'I31f', 'I40f', 'I50f', 'I70f']
+filter_b_FBP_siemens_flash = ['B10f', 'B26f', 'B30f', 'B31f', 'B40f', 'B45f', 'B50f', 'B70f', 'D33f']
+filter_b_IR_siemens_flash = ['I26f', 'I30f', 'I31f', 'I40f', 'I50f', 'I70f', 'Q33f']
+filter_b_canon = ['FC08','FC18','FC26','FC43','FC51','FC52']
+filter_b_canon_FC51 = ['FC51']
+filter_b_GE = ['BONE','BONEPLUS','CHEST','DETAIL','EDGE','LUNG','SOFT','STANDARD','ULTRA']
+filter_b_GE_std = ['STANDARD']
+
 ##############################################
 #Layout
 ##############################################
@@ -39,7 +56,7 @@ layout = [
     [sg.Combo([], enable_events = True, key='rec_type', size = (15,0))],
     #All filters available
     [sg.Text("Choose filter: "), sg.Push(), sg.Text('', key = '-OUTPUT-', font = ("Arial", 15)), sg.Push()], 
-    [sg.Combo([], key='filter_type', size=(15,0))],
+    [sg.Combo([], key='filter_type', size=(20,0))],
     #Dose
     [sg.Text("Dose level head: ")], 
     [sg.Combo(['40 mGy', '60 mGy', '80 mGy', 'ALL'], default_value = '60 mGy', key='dose_level', disabled=True)], 
@@ -154,12 +171,9 @@ def image_scroll(scanner_name, filter_name, reconstruction, dose_level):
 
     #this function is inspired by https://matplotlib.org/stable/gallery/event_handling/image_slices_viewer.html     
     
-    if (scanner_name == 'Siemens AS+' or scanner_name == 'Siemens Flash'):
         
-        image_path = f"../CT bilder av Catphan/{values['examination']}/{scanner_name}/{dose_dict[dose_level]} {reconstruction}  3.0  {filter_name}/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
+    image_path = f"../CT bilder av Catphan/{values['examination']}/{scanner_name}/{reconstruction}/{filter_name}/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
     
-    elif scanner_name == 'Canon Prime':
-        image_path = f"../CT bilder av Catphan/{values['examination']}/{scanner_name}/{dose_dict[dose_level]}/{reconstruction}/{filter_name}/*"
     
     try:
         sortDict, sortedKeys = sortImages(image_path) #Sort images
@@ -225,10 +239,11 @@ def image_scroll(scanner_name, filter_name, reconstruction, dose_level):
     return fig, ax, tracker
 
 #Show single dicom
+'''
 def show_dicom(scanner_name, filter_name, reconstruction, dose_level):
-    '''
-    Displays the 6th image in a sequence for a certain dose, filter and reconstruction.
-    '''
+    
+    #Displays the 6th image in a sequence for a certain dose, filter and reconstruction.
+    
     if (scanner_name == 'Siemens AS+' or scanner_name == 'Siemens Flash'):
         
         image_path = "../CT bilder av Catphan/"+ scanner_name +"/" + dose_dict[dose_level] + " " + reconstruction + "  3.0  " + filter_name + "/*" #220623 JBS Changed from *.dcm to * to include other image formats. 
@@ -260,6 +275,7 @@ def show_dicom_all_dose():
     show_dicom(values['scanner'], values['filter_type'], values['rec_type'], '60 mGy')
     plt.subplot(1,3,3)
     show_dicom(values['scanner'], values['filter_type'], values['rec_type'], '80 mGy')
+'''
     
 ##############################################
 #Find best filtermatch
@@ -307,53 +323,123 @@ while True:
         elif values[event] == 'Body':
             window['scanner'].update(value='', values=scanner_b)
             window['scanner2'].update(value='', values=scanner_b)
+            
+        window['-IMAGE-'].update(disabled = True)
+        window['-FILTERMATCH-'].update(disabled = True)
     
     #Scanner choice 
     if event == 'scanner':
-        if values[event] == 'Siemens AS+':
-            rec_liste = ['FBP', 'IR1', 'IR2', 'IR4']
-            window['rec_type'].update(value = '', values = rec_liste)
-            window['filter_type'].update(value = '', values = [])
+        
+        if values['examination']=='Head':
             
-        elif values[event] == 'Siemens Flash':
-            rec_list = ['FBP', 'IR1', 'IR2']
-            window['rec_type'].update(value = '', values = rec_list)
-            window['filter_type'].update(value ='', values = [])
+            if values[event] == 'Siemens AS+':
+                rec_liste = ['FBP', 'IR1', 'IR2', 'IR4']
+                window['rec_type'].update(value = '', values = rec_liste)
+                window['filter_type'].update(value = '', values = [])
+                
+            elif values[event] == 'Siemens Flash':
+                rec_list = ['FBP', 'IR1', 'IR2']
+                window['rec_type'].update(value = '', values = rec_list)
+                window['filter_type'].update(value ='', values = [])
+                
+            elif values[event] == 'Canon Prime':
+                rec_liste = ['ORG', 'AIDR 3D STD', 'AIDR 3D eSTD']
+                window['rec_type'].update(value = '', values = rec_liste)
+                window['filter_type'].update(value ='', values = [])
+                
+           
+        elif values['examination']=='Body':
             
-        elif values[event] == 'Canon Prime':
-            rec_liste = ['ORG', 'AIDR 3D STD', 'AIDR 3D eSTD']
-            window['rec_type'].update(value = '', values = rec_liste)
-            window['filter_type'].update(value ='', values = [])
-            
+            if values[event] == 'Siemens AS+':
+                rec_liste = ['FBP', 'IR1', 'IR2']
+                window['rec_type'].update(value = '', values = rec_liste)
+                window['filter_type'].update(value = '', values = [])
+                
+            elif values[event] == 'Siemens Flash':
+                rec_list = ['FBP', 'IR1', 'IR2']
+                window['rec_type'].update(value = '', values = rec_list)
+                window['filter_type'].update(value ='', values = [])
+                
+            elif values[event] == 'Canon Prime':
+                rec_list = rec_b_canon
+                window['rec_type'].update(value = '', values = rec_list)
+                window['filter_type'].update(value ='', values = [])
+                
+            elif values[event] == 'GE revolution':
+                rec_list = rec_b_GE
+                window['rec_type'].update(value = '', values = rec_list)
+                window['filter_type'].update(value ='', values = [])
+                
+                
         #Disables NPS button if scanner is switched.
         #window['-NPS_single-'].update(disabled = True)
         #window['-NPS_ALL-'].update(disabled = True)
         window['-IMAGE-'].update(disabled = True)
         window['-FILTERMATCH-'].update(disabled = True)
         
+    
+        
     #Reconstruction choice 
     if event == 'rec_type':
-        if (values['scanner']=='Siemens AS+' or values['scanner']=='Siemens Flash'):
-            if values[event] == 'FBP':
-                filter_list = filter_FBP_siemens
+        
+        if values['examination']=='Head':
+            
+            if (values['scanner']=='Siemens AS+' or values['scanner']=='Siemens Flash'):
+                if values[event] == 'FBP':
+                    filter_list = filter_FBP_siemens
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)
+                else:
+                    filter_list = filter_IR_siemens
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)   
+                    
+            elif values['scanner']=='Canon Prime':
+                filter_list = filter_canon
                 window['filter_type'].update(value = filter_list[0], values = filter_list)
-            else:
-                filter_list = filter_IR_siemens
-                window['filter_type'].update(value = filter_list[0], values = filter_list)   
+       
+        elif values['examination']=='Body':
+            
+            if values['scanner']=='Siemens AS+':
+                if values[event] == 'FBP':
+                    filter_list = filter_b_FBP_siemens_AS
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)
+                else:
+                    filter_list = filter_b_IR_siemens_AS
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)
                 
-        elif values['scanner']=='Canon Prime':
-            filter_list = filter_canon
-            window['filter_type'].update(value = filter_list[0], values = filter_list)
-        
-        
-        #Enables button if rec and filter is choosen.
-        #window['-NPS_single-'].update(disabled = False)
-        #window['-NPS_ALL-'].update(disabled = False)
-        window['-IMAGE-'].update(disabled = False)
-        
-        #Check if matching scanner is chosen before making button available. 
-        if values['scanner2'] != '':
-            window['-FILTERMATCH-'].update(disabled = False)
+            if values['scanner']=='Siemens Flash':
+                if values[event] == 'FBP':
+                    filter_list = filter_b_FBP_siemens_flash
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)
+                else:
+                    filter_list = filter_b_IR_siemens_flash
+                    window['filter_type'].update(value = filter_list[0], values = filter_list)
+                    
+            elif values['scanner']=='Canon Prime':
+                if values[event] == 'ORG' or values[event] == 'AIDR 3D STD' or values[event] == 'AIDR 3D STR' or values[event] == 'AIDR 3D eSTD': 
+                    filter_list = filter_b_canon
+                else:
+                    filter_list = filter_b_canon_FC51
+                    
+                window['filter_type'].update(value = filter_list[0], values = filter_list)
+                
+            elif values['scanner']=='GE revolution':
+                if values[event] == 'TF High' or values[event] == 'TF High med lungefilter' or values[event] == 'TF Low med lungefilter': 
+                    filter_list = filter_b_GE_std
+                else:
+                    filter_list = filter_b_GE
+                    
+                window['filter_type'].update(value = filter_list[0], values = filter_list)
+                    
+                    
+            
+            #Enables button if rec and filter is choosen.
+            #window['-NPS_single-'].update(disabled = False)
+            #window['-NPS_ALL-'].update(disabled = False)
+            window['-IMAGE-'].update(disabled = False)
+            
+            #Check if matching scanner is chosen before making button available. 
+            if values['scanner2'] != '':
+                window['-FILTERMATCH-'].update(disabled = False)
             
         
     #Update button for filtermatching when matching scanner is chosen.
@@ -415,11 +501,12 @@ while True:
         #fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
         #show_dicom(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
         
-        #making new tracker ID in order to open several images.
+        
         try:
+            #making new tracker ID in order to open several images.e
             ID = time.time()
         
-            fig, ax, globals()[f'tracker{ID}'] = image_scroll(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level'])
+            fig, ax, globals()[f'tracker{ID}'] = image_scroll(values['scanner'], values['filter_type'], values['rec_type'], values['dose_level']) 
             fig.suptitle(f"{values['scanner']} with {values['rec_type']} and {values['filter_type']}" , color='white', fontsize=16)
             fig.canvas.mpl_connect('scroll_event', globals()[f'tracker{ID}'].on_scroll)
             plt.show()
@@ -449,8 +536,8 @@ while True:
             print('An error occurred')
     
     #IMAGES FOR ALL DOSES
-    if event == '-IMAGE-' and values['dose_level']=='ALL':
-        show_dicom_all_dose()
+    #if event == '-IMAGE-' and values['dose_level']=='ALL':
+        #show_dicom_all_dose()
     
     #break
     if event == sg.WIN_CLOSED:
