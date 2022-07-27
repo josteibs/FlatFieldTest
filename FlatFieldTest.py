@@ -26,6 +26,96 @@ layout = [[sg.Text('Pick DICOM: ')],
 window = sg.Window('Flat Field Test', layout, size = (500, 400))
 
 
+class _Image:
+    def __init__(self, image):
+        self.data_array = image
+        self.max = np.max(image)
+        self.min = np.min(image)
+        
+        #calculate mean and std once.
+        mean_temp = image.mean(dtype=np.longfloat)
+        SD_temp = image.std()
+        
+        self.mean = round(mean_temp, 2)
+        self.SD = round(SD_temp, 2)
+        self.SNR = round(mean_temp/SD_temp, 2)
+        
+    def show(self):
+        #Function that displays the image
+        plt.figure()
+        plt.axis('off')
+        plt.title('Image', color = 'white')
+        plt.gcf().set_facecolor("black")
+        plt.imshow(self.data_array, cmap='Greys_r', vmin=460, vmax=500)
+
+
+class mammo_image:
+    def __init__(self, address):
+        self.address = address
+        self.dataset = pydicom.dcmread(address)
+        self.image = _Image(self.dataset.pixel_array) #make image object to make it easier to analyze. 
+        self.image_data = self.image.data_array
+        
+    def analyze(self):
+        #print(f'Max: {self.image.max}, Min: {self.image.min}, mean: {self.image.mean}, SD: {self.image.SD}, SNR: {self.image.SNR}')
+        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'))
+
+        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('all', 'all', self.image.mean, self.image.SD, self.image.SNR, self.image.max, self.image.min))
+        print('-----------------------------------------------------')
+        
+    def analyze_area(self, j1, j2, i1, i2):
+        imCopy = np.copy(self.image_data)
+        
+        #i and j for matrix handling. Input and output is x and y. x=j and y=i. 
+        imCopy = imCopy[i1:i2+1, j1:j2+1]
+        image_area = _Image(imCopy)
+        #print(f'X: {j1}, Y: {i1}, mean: {image_area.mean}, SD: {image_area.SD}, SNR: {image_area.SNR}, Max: {image_area.max}, Min: {image_area.min}')
+        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format(j1, i1, image_area.mean, image_area.SD, image_area.SNR, image_area.max, image_area.min))
+    
+    def analyze_full(self):
+        x_max = self.image_data.shape[1]
+        y_max = self.image_data.shape[0]
+        
+        x = 0
+        y = 0
+        
+        ROI_INCREMENT = 49
+        ROI_SIZE = 99
+        
+        while(x + ROI_SIZE <= x_max-25):
+            y = 0
+            while(y + ROI_SIZE <= y_max-25):
+                
+                self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
+                
+                y += ROI_INCREMENT
+            
+            x += ROI_INCREMENT
+        
+        
+        
+        x = x_max - (ROI_SIZE + 1)
+        y=0
+        while(y + ROI_SIZE <= y_max-25):
+            
+            self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
+            
+            y += ROI_INCREMENT
+        
+        
+        x=0
+        y = y_max - (ROI_SIZE + 1)
+        while(x + ROI_SIZE <= x_max-25):
+            
+            self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
+                
+            x += ROI_INCREMENT
+            
+        
+    def show(self):
+        #Displays the image by using the show() function in the Image class. 
+        self.image.show()
+'''
 class mammo_image:
     def __init__(self, address):
         self.address = address
@@ -58,11 +148,11 @@ class mammo_image:
        self.j2 = j2
 
     def full_analyze(self):
-        '''
-        imCopy = np.copy(self.image)
-        fig = plt.figure()
-        camera = Camera(fig)
-        '''
+        
+        #imCopy = np.copy(self.image)
+        #fig = plt.figure()
+        #camera = Camera(fig)
+        
         pixel_step = 49
         i_steps = self.image.shape[0] // pixel_step
         j_steps = self.image.shape[1] // pixel_step
@@ -92,13 +182,13 @@ class mammo_image:
                 
                 
                 #figure stuff
-                '''
-                rect = cv2.rectangle(imCopy, (self.j1, self.i1), (self.j2, self.i2), (0,0,255), -1)
-                plt.ioff()
-                plt.gcf().set_facecolor("black")
-                plt.imshow(rect, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
-                camera.snap()
-                '''
+                
+                #rect = cv2.rectangle(imCopy, (self.j1, self.i1), (self.j2, self.i2), (0,0,255), -1)
+                #plt.ioff()
+                #plt.gcf().set_facecolor("black")
+                #plt.imshow(rect, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
+                #camera.snap()
+                
             j_start += pixel_step
             j_end += pixel_step
             i_start = 0
@@ -137,7 +227,7 @@ class mammo_image:
    
     def snr(self):
        return self.SNR 
-        
+'''        
 
 while True:
     
@@ -160,21 +250,9 @@ while True:
         
     if event == '-ANALYZE-':
         #try:
-        #mammo_image.analyze()
-        #mammo_image.full_analyze()
+        mammo_image.analyze()
+        mammo_image.analyze_full()
         
-        mammo_image.frame_index(2801,2850,0,48)
-        mammo_image.analyze()
-        mammo_image.frameshow()
-        '''
-        mammo_image.frame_index(0,48,49,97)
-        mammo_image.analyze()
-        mammo_image.frameshow()
-        
-        mammo_image.frame_index(0,48,49,97)
-        mammo_image.analyze()
-        mammo_image.frameshow()
-        '''
         #except:
            #3# print("Could not analyze")
             
