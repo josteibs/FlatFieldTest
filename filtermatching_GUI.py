@@ -28,7 +28,7 @@ scanner_b = ['Siemens AS+', 'Siemens Flash', 'Canon Prime', 'GE revolution']
 
 #Reconstruction
 rec_b_canon = ['ORG', 'AIDR 3D STD', 'AIDR 3D STR', 'AIDR 3D eSTD', 'UE0', 'AIDR 3D STD-UE0', 'AIDR 3D STR-UE0', 'AIDR 3D eSTD-UE0']
-rec_b_GE = ['FBP','ASIR_50','TF High','TF High med lungefilter','TF Low ms lungfilter']
+rec_b_GE = ['FBP','ASIR_50','TF High','TF High med lungefilter','TF Low med lungefilter']
 
 #Filters
 filter_GE = ['BONE', 'BONEPLUS', 'CHEST', 'DETAIL', 'EDGE', 'LUNG', 'SOFT', 'STANDARD', 'ULTRA']
@@ -53,7 +53,7 @@ layout = [
     [sg.Combo([], enable_events = True, key='scanner', size=(15,0)), sg.Push(), sg.Combo([], enable_events = True, key='scanner2', size=(15,0)), sg.Push()],
     #reconstructions
     [sg.Text("Choose reconstruction: ")],
-    [sg.Combo([], enable_events = True, key='rec_type', size = (15,0))],
+    [sg.Combo([], enable_events = True, key='rec_type', size = (20,0))],
     #All filters available
     [sg.Text("Choose filter: "), sg.Push(), sg.Text('', key = '-OUTPUT-', font = ("Arial", 15)), sg.Push()], 
     [sg.Combo([], key='filter_type', size=(20,0))],
