@@ -6,12 +6,14 @@ Created on Fri Jul  8 12:47:30 2022
 Purpose: Do flatfield-test for mammography
 """
 
+import numpy as np
 import PySimpleGUI as sg
 import pydicom
 import matplotlib.pyplot as plt
+import pandas as pd
 import os, csv 
 import cv2
-import numpy as np
+
 from celluloid import Camera
 
 working_directory = os.getcwd()
@@ -58,10 +60,20 @@ class mammo_image:
         
     def analyze(self):
         #print(f'Max: {self.image.max}, Min: {self.image.min}, mean: {self.image.mean}, SD: {self.image.SD}, SNR: {self.image.SNR}')
-        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'))
+        #print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'))
 
-        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('all', 'all', self.image.mean, self.image.SD, self.image.SNR, self.image.max, self.image.min))
-        print('-----------------------------------------------------')
+        #print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format('all', 'all', self.image.mean, self.image.SD, self.image.SNR, self.image.max, self.image.min))
+        #print('-----------------------------------------------------')
+        
+        
+        self.df = pd.DataFrame({'X': int(self.image_data.shape[1]),
+                           'Y': int(self.image_data.shape[0]),
+                           'Mean': [self.image.mean],
+                           'SD': [self.image.SD],
+                           'SNR': [self.image.SNR],
+                           'Max': [self.image.max],
+                           'Min': [self.image.min]                
+            })
         
     def analyze_area(self, j1, j2, i1, i2):
         imCopy = np.copy(self.image_data)
@@ -70,17 +82,34 @@ class mammo_image:
         imCopy = imCopy[i1:i2+1, j1:j2+1]
         image_area = _Image(imCopy)
         #print(f'X: {j1}, Y: {i1}, mean: {image_area.mean}, SD: {image_area.SD}, SNR: {image_area.SNR}, Max: {image_area.max}, Min: {image_area.min}')
-        print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format(j1, i1, image_area.mean, image_area.SD, image_area.SNR, image_area.max, image_area.min))
+        #print('{:<5}{:<5}{:<10}{:<10}{:<10}{:<10}{:<10}'.format(j1, i1, image_area.mean, image_area.SD, image_area.SNR, image_area.max, image_area.min))
+        
+        new_row = {
+            'X': j1,
+            'Y': i1,
+            'Mean': image_area.mean,
+            'SD': image_area.SD,
+            'SNR': image_area.SNR,
+            'Max': image_area.max,
+            'Min': image_area.min                
+            }
+        
+        self.df = self.df.append(new_row, ignore_index=True)
+     
     
     def analyze_full(self):
-        x_max = self.image_data.shape[1]
-        y_max = self.image_data.shape[0]
+        #Highest possible x/y-value is image size - 1.
+        x_max = self.image_data.shape[1] - 1
+        y_max = self.image_data.shape[0] - 1
         
         x = 0
         y = 0
         
+        #INCREMENT is the numer of pixels the ROI is moved
+        #SIZE is the number of pixels in the ROI (in 1D)
         ROI_INCREMENT = 49
-        ROI_SIZE = 99
+        ROI_SIZE = 98
+        
         
         while(x + ROI_SIZE <= x_max-25):
             y = 0
@@ -94,22 +123,41 @@ class mammo_image:
         
         
         
-        x = x_max - (ROI_SIZE + 1)
+        
+        x = x_max - (ROI_SIZE+1)
         y=0
         while(y + ROI_SIZE <= y_max-25):
-            
+                        
             self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
             
             y += ROI_INCREMENT
         
         
         x=0
-        y = y_max - (ROI_SIZE + 1)
+        y = y_max - (ROI_SIZE+1)
         while(x + ROI_SIZE <= x_max-25):
-            
             self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
                 
             x += ROI_INCREMENT
+        
+        
+        #save data
+        self.df = self.df.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
+        self.df.to_csv('mammo_image_data.csv', sep=';', decimal=',')  
+        
+        SNR_ROI_mean = round(self.df['SNR'].mean(), 2)
+        print(f'SNR mean in ROIs: {SNR_ROI_mean}')
+        
+        #Finding ROIs with pixels or SNR that deviates more than 15% from the average
+        for i, row in self.df.iterrows():
+            mean_pixel = row['Mean']
+            ROI_SNR = row['SNR']
+            
+            if(abs(mean_pixel-self.image.mean)/self.image.mean*100 >= 15):
+                print(row)
+            
+            elif(abs(ROI_SNR-SNR_ROI_mean)/SNR_ROI_mean >= 15):
+                print(row)
             
         
     def show(self):
@@ -193,41 +241,14 @@ class mammo_image:
             j_end += pixel_step
             i_start = 0
             i_end = 48
-    
+          
         
         #animation = camera.animate()
         #animation.save('image_analyze.gif', writer ='imagemagick')
         f.close()
-       
-    def frameshow(self):
-        plt.figure()
-        plt.title('pre rec', color = 'white')
-        plt.gcf().set_facecolor("black")
-        plt.imshow(self.frame, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
-        
-        img = self.image
-        rect = cv2.rectangle(img, (self.i1, self.j1), (self.i2, self.j2), (0,0,255), -1)
-        print(rect.shape)
-        plt.figure()
-        plt.title('post_rec', color = 'white')
-        plt.gcf().set_facecolor("black")
-        plt.imshow(self.frame, cmap='Greys_r', vmin=460, vmax=500)#, cmap='Greys_r', vmin=460, vmax=500)
-        
-    def Max(self):
-       return self.max
-   
-    def Min(self):
-       return self.min
-   
-    def std(self):
-       return self.std
-   
-    def avg(self):
-       return self.avg
-   
-    def snr(self):
-       return self.SNR 
-'''        
+'''       
+
+  
 
 while True:
     
