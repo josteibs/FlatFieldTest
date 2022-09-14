@@ -14,7 +14,7 @@ import pandas as pd
 import os
 import time
 
-from celluloid import Camera
+#from celluloid import Camera
 
 
 working_directory = os.getcwd()
@@ -23,7 +23,8 @@ layout = [[sg.Text('Pick DICOM: ')],
     [sg.InputText(key = '-FILE_PATH-', enable_events=True),
      sg.FileBrowse(initial_folder = working_directory, file_types=[('DICOM files', '*.dcm')])],
     [sg.Button('View image', key = '-VIEW_IMAGE-')],
-    [sg.Button('Analyze', key = '-ANALYZE-')]    
+    [sg.Button('Analyze', key = '-ANALYZE-')],
+    [sg.Button('View color plot', key = '-CMAP_IMAGE-')]    
     ]
 
 window = sg.Window('Flat Field Test', layout, size = (500, 400))
@@ -49,8 +50,32 @@ class _Image:
         plt.axis('off')
         plt.title('Image', color = 'white')
         plt.gcf().set_facecolor("black")
-        plt.imshow(self.data_array, cmap='Greys_r', vmin=460, vmax=500)
-
+        plt.imshow(self.data_array, cmap='Greys_r', vmin=self.min, vmax=self.max)
+        
+    def show_cmap(self):
+        #Color map of image
+        plt.figure()
+        plt.axis('off')
+        plt.title('Color map')
+        
+        #Make average pixel value be the center of the color bar
+        top_bar = np.abs(self.max - self.mean)
+        bottom_bar = np.abs(self.mean - self.min)
+        
+        if(top_bar >= bottom_bar):
+            cbar_max = self.max
+            cbar_min = self.mean - top_bar
+        else:
+           cbar_max = self.mean + bottom_bar
+           cbar_min = self.min
+           
+        im = plt.imshow(self.data_array, cmap='seismic', vmin=cbar_min, vmax=cbar_max)
+        plt.colorbar(im)
+        
+        #Printing average values
+        print(f'Average pixel value: {self.mean}')
+        print(f'Maximum pixel value: {self.max}')
+        print(f'Minimum pixel value: {self.min}')
 
 class MammoImage:
     def __init__(self, address):
@@ -173,6 +198,9 @@ class MammoImage:
         # Displays the image by using the show() function of the Image class. 
         self.image.show()
   
+    def show_cmap(self):
+        # Displays 3D plot of image from same function in the Image class
+        self.image.show_cmap()
 
 #GUI control
 while True:
@@ -197,9 +225,14 @@ while True:
         mammo_image.analyze()
         mammo_image.analyze_full()
         et = time.time()
+    
+    if event == '-CMAP_IMAGE-':
+        mammo_image.show_cmap()
         
+    try:
         print(f"Execution time: {et-st}")
-        #except:
+    except:
+        pass
            #3# print("Could not analyze")
             
     if event == sg.WIN_CLOSED:
