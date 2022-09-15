@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import time
+import seaborn as sns
 
 #from celluloid import Camera
 
@@ -22,9 +23,11 @@ working_directory = os.getcwd()
 layout = [[sg.Text('Pick DICOM: ')],
     [sg.InputText(key = '-FILE_PATH-', enable_events=True),
      sg.FileBrowse(initial_folder = working_directory, file_types=[('DICOM files', '*.dcm')])],
-    [sg.Button('View image', key = '-VIEW_IMAGE-')],
-    [sg.Button('Analyze', key = '-ANALYZE-')],
-    [sg.Button('View color plot', key = '-CMAP_IMAGE-')]    
+    [sg.Button('View image', key = '-VIEW_IMAGE-', disabled = True)],
+    [sg.Button('Analyze', key = '-ANALYZE-', disabled = True)],
+    [sg.Button('View pixel heatmap', key = '-PIXEL_HEATMAP-', disabled = True)],
+    [sg.Button('View SNR ROI heatmap', key = '-SNR_HEATMAP-', disabled = True)],
+    [sg.Button('View pixel average heatmap', key = '-PIXEL_AVERAGE_HEATMAP-', disabled = True)]
     ]
 
 window = sg.Window('Flat Field Test', layout, size = (500, 400))
@@ -52,11 +55,11 @@ class _Image:
         plt.gcf().set_facecolor("black")
         plt.imshow(self.data_array, cmap='Greys_r', vmin=self.min, vmax=self.max)
         
-    def show_cmap(self):
-        #Color map of image
-        plt.figure()
+    def show_pix_hmap(self):
+        #Pixel heatmap of image
+        plt.figure(figsize=(12,12))
         plt.axis('off')
-        plt.title('Color map')
+        plt.title('Pixel heatmap')
         
         #Make average pixel value be the center of the color bar
         top_bar = np.abs(self.max - self.mean)
@@ -68,9 +71,17 @@ class _Image:
         else:
            cbar_max = self.mean + bottom_bar
            cbar_min = self.min
-           
+        
+        #Make image figure with deiverging colors.
         im = plt.imshow(self.data_array, cmap='seismic', vmin=cbar_min, vmax=cbar_max)
-        plt.colorbar(im)
+        
+        #Color bar and its specs
+        cbar = plt.colorbar(im)
+        cbar.ax.hlines(self.max, cbar_min, cbar_max, colors='cyan', linestyles='dotted', label=f'Max PV: {self.max}')
+        cbar.ax.hlines(self.mean, cbar_min, cbar_max, colors='darkorange', label=f'Avg PV: {self.mean}')
+        cbar.ax.hlines(self.min, cbar_min, cbar_max, colors='magenta', linestyles='dashed', label=f'Min PV: {self.min}')
+        cbar.ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.1))
+        
         
         #Printing average values
         print(f'Average pixel value: {self.mean}')
@@ -192,15 +203,36 @@ class MammoImage:
         # Coverting doubles and saving file with deviating ROIs        
         df_dev = df_dev.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         df_dev.to_csv('mammo_image_deviating_ROIs.csv', sep=';', decimal=',')
-            
+        
+    def show_snr_hmap(self):
+        plt.figure(figsize=(10,10))
+        
+        #loading data from csv file
+        df_loaded = pd.read_csv('mammo_image_data.csv', sep=';', decimal=',')
+        #reshape dataframe
+        data_pivoted = df_loaded.pivot('Y', 'X', 'SNR')
+        #Make heatmap
+        ax = sns.heatmap(data_pivoted, cmap='seismic')
+        plt.show()
+        
+    def show_pix_avg_hmap(self):        
+        plt.figure(figsize=(10,10))
+        
+        #loading data from csv file
+        df_loaded = pd.read_csv('mammo_image_data.csv', sep=';', decimal=',')
+        #reshape dataframe
+        data_pivoted = df_loaded.pivot('Y', 'X', 'Mean')
+        #Make heatmap
+        ax = sns.heatmap(data_pivoted, cmap='seismic', center=self.image.mean)
+        plt.show()
         
     def show(self):
         # Displays the image by using the show() function of the Image class. 
         self.image.show()
   
-    def show_cmap(self):
+    def show_pix_hmap(self):
         # Displays 3D plot of image from same function in the Image class
-        self.image.show_cmap()
+        self.image.show_pix_hmap()
 
 #GUI control
 while True:
@@ -210,6 +242,12 @@ while True:
     if event == '-FILE_PATH-':
         try: 
             mammo_image = MammoImage(values['-FILE_PATH-'])
+            #Enable buttons
+            window['-VIEW_IMAGE-'].update(disabled = False)
+            window['-ANALYZE-'].update(disabled = False)
+            window['-PIXEL_HEATMAP-'].update(disabled = False)
+            window['-SNR_HEATMAP-'].update(disabled = False)
+            window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = False)
         except:
             pass
     
@@ -226,8 +264,14 @@ while True:
         mammo_image.analyze_full()
         et = time.time()
     
-    if event == '-CMAP_IMAGE-':
-        mammo_image.show_cmap()
+    if event == '-PIXEL_HEATMAP-':
+        mammo_image.show_pix_hmap()
+    
+    if event == '-SNR_HEATMAP-':
+        mammo_image.show_snr_hmap()
+        
+    if event == '-PIXEL_AVERAGE_HEATMAP-':
+        mammo_image.show_pix_avg_hmap()    
         
     try:
         print(f"Execution time: {et-st}")
