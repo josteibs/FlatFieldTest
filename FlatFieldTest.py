@@ -24,8 +24,8 @@ layout = [[sg.Text('Pick DICOM: ')],
     [sg.InputText(key = '-FILE_PATH-', enable_events=True),
      sg.FileBrowse(initial_folder = working_directory, file_types=[('DICOM files', '*.dcm')])],
     [sg.Button('View image', key = '-VIEW_IMAGE-', disabled = True)],
-    [sg.Button('Analyze', key = '-ANALYZE-', disabled = True)],
     [sg.Button('View pixel heatmap', key = '-PIXEL_HEATMAP-', disabled = True)],
+    [sg.Button('Analyze', font=('Times New Roman', 15),  key = '-ANALYZE-', disabled = True, size=(10, 1), button_color='red')],
     [sg.Button('View SNR ROI heatmap', key = '-SNR_HEATMAP-', disabled = True)],
     [sg.Button('View pixel average heatmap', key = '-PIXEL_AVERAGE_HEATMAP-', disabled = True)]
     ]
@@ -186,7 +186,9 @@ class MammoImage:
         
         # calculating the mean SNR in all ROIs
         self.SNR_ROI_mean = round(self.df['SNR'].mean(), 2)
+        print()
         print(f'SNR mean in ROIs: {self.SNR_ROI_mean}')
+        print('--------------------------------------------')
         
         # Finding ROIs with pixels or SNR that deviates more than 15% from the average
         # ALSO: Finding ROIs with pixels deviating more than 20% from the ROI pixel average
@@ -196,8 +198,10 @@ class MammoImage:
         df_dev_pixel = pd.DataFrame(columns = ['X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'])
         for i, row in self.df.iterrows():
             if(i==0):
-                print('I lik null')
+                # To ignore the first row, which is the analyse of the whole image
                 continue
+            
+            # Some of the row variables
             mean_pixel = row['Mean']
             ROI_SNR = row['SNR']
             pixel_max = row['Max']
@@ -217,12 +221,11 @@ class MammoImage:
             elif((mean_pixel-pixel_min)/mean_pixel*100 >= DEVIATION_MAX_PIXEL):
                 df_dev_pixel = df_dev_pixel.append(row, ignore_index=True)
         
-        # Check if dataframes are empty
-        if(df_dev.empty):
-            print("No ROIs with average pixel value or SNR deviating more than 15% from average pixel value in the whole image or average ROI SNR.")
-        if(df_dev_pixel.empty):
-            print("No ROIs with pixels deviating more than 20% from average pixel value within ROI.")
-                
+        # Counting and printing the number of deviating discoveries
+        print(f'Deviating ROIs > 15 % from mean: {len(df_dev)}')
+        print(f'Deviating pixels > 20 % from mean in ROI: {len(df_dev_pixel)}')
+        print('--------------------------------------------')
+            
         # Coverting doubles and saving file with deviating ROIs        
         df_dev = df_dev.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         df_dev_pixel = df_dev_pixel.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
@@ -244,7 +247,13 @@ class MammoImage:
         plt.title('SNR average in ROIs')
         
         # loading data from csv file
-        df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+        try:
+            df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+        except:
+            print(f'Could not load the file \"{self.fileID}_data.csv\"')
+            print('--------------------------------------------')
+            return
+        
         # reshape dataframe
         data_pivoted = df_loaded.pivot('Y', 'X', 'SNR')
         # Make heatmap
@@ -257,7 +266,13 @@ class MammoImage:
         plt.title('Average pixel value in ROIs')
         
         # loading data from csv file
-        df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+        try:
+            df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+        except:
+            print(f'Could not load the file \"{self.fileID}_data.csv\"')
+            print('--------------------------------------------')
+            return
+        
         # reshape dataframe
         data_pivoted = df_loaded.pivot('Y', 'X', 'Mean')
         # Make heatmap
@@ -271,6 +286,7 @@ while True:
     
     event, values = window.read()
     
+    # Opening the file
     if event == '-FILE_PATH-':
         try: 
             mammo_image = MammoImage(values['-FILE_PATH-'])
@@ -281,31 +297,41 @@ while True:
         except:
             pass
     
+    # View the dicom image
     if event == '-VIEW_IMAGE-':
         try:
             mammo_image.show()
         except:
             print("Could not open DICOM")
-        
+    
+    # Dicom image as a heatmap
+    if event == '-PIXEL_HEATMAP-':
+        try:
+            mammo_image.show_pix_hmap()
+        except:
+            print('Something went wrong. Troubleshoot the show_pix_hmap()-function in the _Image class.')
+            print('--------------------------------------------')
+    
+    # Doing the flat field test on image     
     if event == '-ANALYZE-':
         # try:
         st = time.time()
         mammo_image.analyze()
         mammo_image.analyze_full()
         et = time.time()
-        print(f"Execution time: {et-st}")
+        exc_time = round(et-st, 2)
+        print(f"Execution time: {exc_time} sec")
         print('--------------------------------------------')
         
         # Enable buttons that use data from analyse. 
         window['-SNR_HEATMAP-'].update(disabled = False)
         window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = False)
     
-    if event == '-PIXEL_HEATMAP-':
-        mammo_image.show_pix_hmap()
-    
+    # SNR in ROI as heatmap
     if event == '-SNR_HEATMAP-':
         mammo_image.show_snr_hmap()
         
+    # Pixel average as heatmap    
     if event == '-PIXEL_AVERAGE_HEATMAP-':
         mammo_image.show_pix_avg_hmap()    
             
