@@ -32,6 +32,7 @@ layout = [[sg.Text('Pick DICOM: ')],
 
 window = sg.Window('Flat Field Test', layout, size = (500, 400))
 
+
 class _Image:
     def __init__(self, image):
         self.data_array = image
@@ -58,7 +59,6 @@ class _Image:
     def show_pix_hmap(self):
         # Pixel heatmap of image
         plt.figure(figsize=(12,12))
-        plt.axis('off')
         plt.title('Pixel heatmap')
         
         # Make average pixel value be the center of the color bar
@@ -73,6 +73,8 @@ class _Image:
            cbar_min = self.min
         
         # Make image figure with deiverging colors.
+        plt.xlabel('X')
+        plt.ylabel('Y')
         im = plt.imshow(self.data_array, cmap='seismic', vmin=cbar_min-1, vmax=cbar_max+1) # +/- 1 to make sure line shows on color bar
         
         # Color bar and its specs
@@ -81,13 +83,7 @@ class _Image:
         cbar.ax.hlines(self.mean, cbar_min, cbar_max, colors='darkorange', label=f'Avg PV: {self.mean}')
         cbar.ax.hlines(self.min, cbar_min, cbar_max, colors='magenta', linestyles='dashed', label=f'Min PV: {self.min}')
         cbar.ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1.1))
-        
-        
-        # Printing max, mean and min of all pixel values
-        print(f'Maximum pixel value: {self.max}')
-        print(f'Average pixel value: {self.mean}')
-        print(f'Minimum pixel value: {self.min}')
-        print('--------------------------------------------')
+
 
 class MammoImage:
     def __init__(self, address):
@@ -182,14 +178,15 @@ class MammoImage:
         # Converting some of the doubles to integers
         self.df = self.df.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         #save as csv. Sep and decimal is choosen to fit excel
-        self.df.to_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')  
+        try:
+            self.df.to_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+        except:
+            print(f'Could not save the file \"{self.fileID}_data.csv\"')
+            return False        
         
         # calculating the mean SNR in all ROIs
         self.SNR_ROI_mean = round(self.df['SNR'].mean(), 2)
-        print()
-        print(f'SNR mean in ROIs: {self.SNR_ROI_mean}')
-        print('--------------------------------------------')
-        
+                
         # Finding ROIs with pixels or SNR that deviates more than 15% from the average
         # ALSO: Finding ROIs with pixels deviating more than 20% from the ROI pixel average
         DEVIATION_MAX = 15
@@ -221,16 +218,35 @@ class MammoImage:
             elif((mean_pixel-pixel_min)/mean_pixel*100 >= DEVIATION_MAX_PIXEL):
                 df_dev_pixel = df_dev_pixel.append(row, ignore_index=True)
         
-        # Counting and printing the number of deviating discoveries
-        print(f'Deviating ROIs > 15 % from mean: {len(df_dev)}')
-        print(f'Deviating pixels > 20 % from mean in ROI: {len(df_dev_pixel)}')
-        print('--------------------------------------------')
-            
+        # Counting the number of deviating discoveries
+        num_dev_ROI = len(df_dev)
+        num_dev_pixel = len(df_dev_pixel)
+                  
         # Coverting doubles and saving file with deviating ROIs        
         df_dev = df_dev.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         df_dev_pixel = df_dev_pixel.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
-        df_dev.to_csv(f'{self.fileID}_deviating_ROIs.csv', sep=';', decimal=',')
-        df_dev_pixel.to_csv(f'{self.fileID}_deviating_ROIs.csv', mode='a', sep=';', decimal=',')
+        try: 
+            df_dev.to_csv(f'{self.fileID}_deviating_ROIs.csv', sep=';', decimal=',')
+            df_dev_pixel.to_csv(f'{self.fileID}_deviating_ROIs.csv', mode='a', sep=';', decimal=',')
+        except:
+            print(f'Could not save the file \"{self.fileID}_deviating_ROIs.csv\"')
+            return False
+        
+        # Output
+        print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        print(f'FILE ID: {self.fileID}')
+        print('--------------------------------------------')
+        print(f'Maximum pixel value: {self.image.max}')
+        print(f'Average pixel value: {self.image.mean}')
+        print(f'Minimum pixel value: {self.image.min}')
+        print('--------------------------------------------')
+        print(f'SNR mean in ROIs: {self.SNR_ROI_mean}')
+        print('--------------------------------------------')
+        print(f'Deviating ROIs > 15 % from mean: {num_dev_ROI}')
+        print(f'Deviating pixels > 20 % from mean in ROI: {num_dev_pixel}')
+        print('--------------------------------------------')
+        print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        return True
     
     # SHOW FUNCTIONS
     def show(self):
@@ -278,12 +294,10 @@ class MammoImage:
         # Make heatmap
         sns.heatmap(data_pivoted, cmap='seismic', center=self.image.mean)
         plt.show()
-        
     
 
 # GUI control
 while True:
-    
     event, values = window.read()
     
     # Opening the file
@@ -317,15 +331,16 @@ while True:
         # try:
         st = time.time()
         mammo_image.analyze()
-        mammo_image.analyze_full()
+        success = mammo_image.analyze_full()
         et = time.time()
         exc_time = round(et-st, 2)
         print(f"Execution time: {exc_time} sec")
         print('--------------------------------------------')
         
-        # Enable buttons that use data from analyse. 
-        window['-SNR_HEATMAP-'].update(disabled = False)
-        window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = False)
+        # Enable buttons that use data from analyse if analyze was successfull.
+        if(success):
+            window['-SNR_HEATMAP-'].update(disabled = False)
+            window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = False)
     
     # SNR in ROI as heatmap
     if event == '-SNR_HEATMAP-':
