@@ -189,21 +189,45 @@ class MammoImage:
         print(f'SNR mean in ROIs: {self.SNR_ROI_mean}')
         
         # Finding ROIs with pixels or SNR that deviates more than 15% from the average
+        # ALSO: Finding ROIs with pixels deviating more than 20% from the ROI pixel average
         DEVIATION_MAX = 15
+        DEVIATION_MAX_PIXEL = 20 
         df_dev = pd.DataFrame(columns = ['X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'])
+        df_dev_pixel = pd.DataFrame(columns = ['X', 'Y', 'Mean', 'SD', 'SNR', 'Max', 'Min'])
         for i, row in self.df.iterrows():
+            if(i==0):
+                print('I lik null')
+                continue
             mean_pixel = row['Mean']
             ROI_SNR = row['SNR']
+            pixel_max = row['Max']
+            pixel_min = row['Min']
             
+            # Checking for 15% devation within ROI compared to the whole image
             if(abs(mean_pixel-self.image.mean)/self.image.mean*100 >= DEVIATION_MAX):
                 df_dev = df_dev.append(row, ignore_index=True)
             
             elif(abs(ROI_SNR-self.SNR_ROI_mean)/self.SNR_ROI_mean*100 >= DEVIATION_MAX):
                 df_dev = df_dev.append(row, ignore_index=True)
+              
+            # Checking for 20% deviation of pixel value within ROI     
+            if((pixel_max-mean_pixel)/mean_pixel*100 >= DEVIATION_MAX_PIXEL):
+                df_dev_pixel = df_dev_pixel.append(row, ignore_index=True)
+                
+            elif((mean_pixel-pixel_min)/mean_pixel*100 >= DEVIATION_MAX_PIXEL):
+                df_dev_pixel = df_dev_pixel.append(row, ignore_index=True)
+        
+        # Check if dataframes are empty
+        if(df_dev.empty):
+            print("No ROIs with average pixel value or SNR deviating more than 15% from average pixel value in the whole image or average ROI SNR.")
+        if(df_dev_pixel.empty):
+            print("No ROIs with pixels deviating more than 20% from average pixel value within ROI.")
                 
         # Coverting doubles and saving file with deviating ROIs        
         df_dev = df_dev.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
+        df_dev_pixel = df_dev_pixel.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         df_dev.to_csv(f'{self.fileID}_deviating_ROIs.csv', sep=';', decimal=',')
+        df_dev_pixel.to_csv(f'{self.fileID}_deviating_ROIs.csv', mode='a', sep=';', decimal=',')
     
     # SHOW FUNCTIONS
     def show(self):
