@@ -15,9 +15,7 @@ import os
 import time
 import seaborn as sns
 
-# from celluloid import Camera
-
-
+current_file_analyzed = ''
 working_directory = os.getcwd()
 
 layout = [[sg.Text('Pick DICOM: ')],
@@ -92,6 +90,11 @@ class MammoImage:
         self.image = _Image(self.dataset.pixel_array) # make image object to make it easier to analyze. 
         self.image_data = self.image.data_array
         
+        # Filename/ID
+        split_address = self.address.split('/')
+        splitname = split_address[-1].split('_')
+        self.fileID = splitname[0]
+        
     def analyze(self):
         self.df = pd.DataFrame({'X': int(self.image_data.shape[1]),
                            'Y': int(self.image_data.shape[0]),
@@ -119,6 +122,7 @@ class MammoImage:
             }
         
         self.df = self.df.append(new_row, ignore_index=True)
+        return image_area # Possible to use this object outside the function
         
     def analyze_full(self):
         # Highest possible x/y-value is image size - 1.
@@ -144,9 +148,9 @@ class MammoImage:
           
         # 2. ROIs for right side frame
         #####################################################
-        x, y = x_max - (ROI_SIZE+1), 0
+        x, y = x_max - (ROI_SIZE+1), 0 # Start analyze from x_max - (ROI_SIZE+1) to make results similar to original program.
         while(y + ROI_SIZE <= y_max-25):     
-            self.analyze_area(x, x + ROI_SIZE, y, y + ROI_SIZE)
+            self.analyze_area(x, x + ROI_SIZE+1, y, y + ROI_SIZE) # 220923 JBS Increase x with ROI_SIZE+1 to get all pixels
             y += ROI_INCREMENT
         
         # 3. ROIs for bottom frame
@@ -169,11 +173,6 @@ class MammoImage:
         #
         #
         #
-        
-        # Filename/ID
-        split_address = self.address.split('/')
-        splitname = split_address[-1].split('_')
-        self.fileID = splitname[0]
         
         # Converting some of the doubles to integers
         self.df = self.df.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
@@ -265,6 +264,7 @@ class MammoImage:
         # loading data from csv file
         try:
             df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+            df_loaded = df_loaded.iloc[1:,:] # removing the first row, info about the whole image
         except:
             print(f'Could not load the file \"{self.fileID}_data.csv\"')
             print('--------------------------------------------')
@@ -284,6 +284,7 @@ class MammoImage:
         # loading data from csv file
         try:
             df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+            df_loaded = df_loaded.iloc[1:,:] # removing the first row, info about the whole image
         except:
             print(f'Could not load the file \"{self.fileID}_data.csv\"')
             print('--------------------------------------------')
@@ -302,6 +303,12 @@ while True:
     
     # Opening the file
     if event == '-FILE_PATH-':
+        # Making sure the SNR and avg pixel heat map is only available if the analyze is already done to this file
+        if(current_file_analyzed != values['-FILE_PATH-']):
+            window['-SNR_HEATMAP-'].update(disabled = True)
+            window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = True)
+            
+        # Making the MammoImage object
         try: 
             mammo_image = MammoImage(values['-FILE_PATH-'])
             # Enable buttons
@@ -341,6 +348,7 @@ while True:
         if(success):
             window['-SNR_HEATMAP-'].update(disabled = False)
             window['-PIXEL_AVERAGE_HEATMAP-'].update(disabled = False)
+            current_file_analyzed = values['-FILE_PATH-'] # Notes the path of file analyzed
     
     # SNR in ROI as heatmap
     if event == '-SNR_HEATMAP-':
