@@ -86,6 +86,7 @@ class _Image:
 class MammoImage:
     def __init__(self, address):
         self.address = address
+        self.path = os.path.dirname(address)
         self.dataset = pydicom.dcmread(address)
         self.image = _Image(self.dataset.pixel_array) # make image object to make it easier to analyze. 
         self.image_data = self.image.data_array
@@ -178,7 +179,7 @@ class MammoImage:
         self.df = self.df.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         #save as csv. Sep and decimal is choosen to fit excel
         try:
-            self.df.to_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+            self.df.to_csv(f'{self.path}/{self.fileID}_data.csv', sep=';', decimal=',')
         except:
             print(f'Could not save the file \"{self.fileID}_data.csv\"')
             return False        
@@ -225,8 +226,8 @@ class MammoImage:
         df_dev = df_dev.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         df_dev_pixel = df_dev_pixel.astype({'X': 'int', 'Y': 'int', 'Max': 'int', 'Min': 'int'})
         try: 
-            df_dev.to_csv(f'{self.fileID}_deviating_ROIs.csv', sep=';', decimal=',')
-            df_dev_pixel.to_csv(f'{self.fileID}_deviating_ROIs.csv', mode='a', sep=';', decimal=',')
+            df_dev.to_csv(f'{self.path}/{self.fileID}_deviating_ROIs.csv', sep=';', decimal=',')
+            df_dev_pixel.to_csv(f'{self.path}/{self.fileID}_deviating_ROIs.csv', mode='a', sep=';', decimal=',')
         except:
             print(f'Could not save the file \"{self.fileID}_deviating_ROIs.csv\"')
             return False
@@ -263,7 +264,7 @@ class MammoImage:
         
         # loading data from csv file
         try:
-            df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+            df_loaded = pd.read_csv(f'{self.path}/{self.fileID}_data.csv', sep=';', decimal=',')
             df_loaded = df_loaded.iloc[1:,:] # removing the first row, info about the whole image
         except:
             print(f'Could not load the file \"{self.fileID}_data.csv\"')
@@ -283,7 +284,7 @@ class MammoImage:
         
         # loading data from csv file
         try:
-            df_loaded = pd.read_csv(f'{self.fileID}_data.csv', sep=';', decimal=',')
+            df_loaded = pd.read_csv(f'{self.path}/{self.fileID}_data.csv', sep=';', decimal=',')
             df_loaded = df_loaded.iloc[1:,:] # removing the first row, info about the whole image
         except:
             print(f'Could not load the file \"{self.fileID}_data.csv\"')
