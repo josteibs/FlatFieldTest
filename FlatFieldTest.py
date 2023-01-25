@@ -18,17 +18,24 @@ import seaborn as sns
 current_file_analyzed = ''
 working_directory = os.getcwd()
 
-layout = [[sg.Text('Pick DICOM: ')],
+layout = [
+    # Upload file
+    [sg.Text('Pick DICOM: ', font=('Cambria', 16))],
     [sg.InputText(key = '-FILE_PATH-', enable_events=True),
      sg.FileBrowse(initial_folder = working_directory, file_types=[('DICOM files', '*.dcm')])],
-    [sg.Button('View image', key = '-VIEW_IMAGE-', disabled = True)],
-    [sg.Button('View pixel heatmap', key = '-PIXEL_HEATMAP-', disabled = True)],
+    # View image
+    [sg.Button('View image', key = '-VIEW_IMAGE-', disabled = True), sg.Push(), sg.Text('Insert pixel offset:', font=('Cambria', 12))],
+    # View pixel heatmap
+    [sg.Button('View pixel heatmap', key = '-PIXEL_HEATMAP-', disabled = True), sg.Push(), 
+    # Pixel offset 
+     sg.Input('--', size=(5,1), key='-pxoffset-', enable_events=True, disabled=True), sg.Button('Add', key='-ADDpxoffset-', size=(5,1), disabled=True)],
+    # Analyze
     [sg.Button('Analyze', font=('Times New Roman', 15),  key = '-ANALYZE-', disabled = True, size=(10, 1), button_color='red')],
     [sg.Button('View SNR ROI heatmap', key = '-SNR_HEATMAP-', disabled = True)],
     [sg.Button('View pixel average heatmap', key = '-PIXEL_AVERAGE_HEATMAP-', disabled = True)]
     ]
 
-window = sg.Window('Flat Field Test', layout, size = (500, 400))
+window = sg.Window('Flat Field Test', layout, size = (500, 300))
 
 
 class _Image:
@@ -95,6 +102,10 @@ class MammoImage:
         split_address = self.address.split('/')
         splitname = split_address[-1].split('_')
         self.fileID = splitname[0]
+   
+    def update_pixel_offset(self, offset):
+        self.image = _Image(self.dataset.pixel_array-offset)
+        self.image_data = self.image.data_array
         
     def analyze(self):
         self.df = pd.DataFrame({'X': int(self.image_data.shape[1]),
@@ -316,6 +327,9 @@ while True:
             window['-VIEW_IMAGE-'].update(disabled = False)
             window['-ANALYZE-'].update(disabled = False)
             window['-PIXEL_HEATMAP-'].update(disabled = False)
+            window['-pxoffset-'].update(disabled = False)
+            window['-pxoffset-'].update('0')
+            window['-ADDpxoffset-'].update(disabled = False)
         except:
             pass
     
@@ -334,6 +348,22 @@ while True:
             print('Something went wrong. Troubleshoot the show_pix_hmap()-function in the _Image class.')
             print('--------------------------------------------')
     
+    # Include a pixel offset
+    if event == '-pxoffset-':
+        # make sure there is max 2 characters. 
+        if len(values['-pxoffset-'])>2:
+            window.Element('-pxoffset-').Update(values['-pxoffset-'][:2])
+    
+    # Include a pixel offset
+    if event == '-ADDpxoffset-':
+        # Update background color if the number is valid/not valid.  
+        if values['-pxoffset-'].isdigit():
+            window['-pxoffset-'].Update(background_color='green')
+            mammo_image.update_pixel_offset(int(values['-pxoffset-']))
+        else:
+            window['-pxoffset-'].Update(background_color='red')
+    
+    ### FLAT FIELD TEST        
     # Doing the flat field test on image     
     if event == '-ANALYZE-':
         # try:
