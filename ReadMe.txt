@@ -7,3 +7,5 @@ Packages needed:
  - matplotlib
  - pandas
  - os, time and seaborn
+
+Run the FlatfieldTest.py. Make sure image_analyzis.py is in the same folder.
