@@ -29,7 +29,7 @@ layout = [
     # Analyze
     [sg.Button('Analyze', font=('Times New Roman', 15),  key = '-ANALYZE-', disabled = True, size=(10, 1), button_color='red'), sg.Push(),
     # Remove corner sqare
-     sg.Button('Corner Square', key = '-CORNER_SQUARE-')],
+     sg.Button('Corner Square', key = '-CORNER_SQUARE-', disabled = True)],
     # ROI heatmap
     [sg.Button('View SNR ROI heatmap', key = '-SNR_HEATMAP-', disabled = True)],
     # avg pixel heatmap
@@ -59,6 +59,9 @@ while True:
             window['-pxoffset-'].update(disabled = False)
             window['-pxoffset-'].update('0')
             window['-ADDpxoffset-'].update(disabled = False)
+            window['-CORNER_SQUARE-'].update(disabled = False)
+            window['-CORNER_SQUARE-'].update(button_color = '#283b5b')
+            #print(repr(sg.theme_button_color_background()))
         except:
             pass
     
@@ -93,6 +96,7 @@ while True:
             window['-pxoffset-'].Update(background_color='red')
     # Remove corner square 
     if event == '-CORNER_SQUARE-':
+        window[event].update(button_color='green')
         mammo_image.corner_square()
         
     ### FLAT FIELD TEST        
