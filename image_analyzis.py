@@ -29,10 +29,7 @@ class _Image:
         self.SD = round(SD_temp, 2)
         self.SNR = round(mean_temp/SD_temp, 2)
         
-        print(self.mean)
-        print(self.median)
-        
-        # Window min and max
+        # Window min and max and center
         self.Wmax = self.max
         self.Wmin = self.min
         self.Wcenter = self.mean
@@ -46,6 +43,10 @@ class _Image:
         plt.imshow(self.data_array, cmap='Greys_r', vmin=self.Wmin, vmax=self.Wmax)
         
     def new_window(self):
+        ''' When there is a bigger part of the image with higher pixel values,
+            the Window level/center is set to the median instead of the mean pixel value.
+            The maximum window value is according to the difference between the minimum 
+            and the Window center.'''
         self.Wcenter = self.median
         self.Wmax = self.Wcenter + (self.Wcenter - self.Wmin)
             
@@ -120,6 +121,9 @@ class MammoImage:
             'Max': image_area.max,
             'Min': image_area.min                
             }
+        full_image_mean = np.mean(self.dataset.pixel_array)
+        if(image_area.mean>full_image_mean*1.5):
+            print(image_area.mean)
         
         self.df = self.df.append(new_row, ignore_index=True)
         return image_area # Possible to use this object outside the function
@@ -257,6 +261,7 @@ class MammoImage:
         self.image.show_pix_hmap()  
         
     def corner_square(self):
+        # The window center is set to the median instead of the mean value. 
         self.image.new_window()
         
     def show_snr_hmap(self):
